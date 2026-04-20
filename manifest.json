@@ -1,0 +1,44 @@
+{
+    "manifest_version": 3,
+    "name": "Web Tools Companion",
+    "version": "1.0.0",
+    "description": "A companion extension for my Web Tools website.",
+    "icons": {
+        "128": "logo128.png"
+    },
+    "action": {
+        "default_popup": "popup.html",
+        "default_icon": "logo128.png"
+    },
+    "permissions": [
+        "storage",
+        "activeTab",
+        "scripting"
+    ],
+    "host_permissions": [
+        "*://*.feutech.edu.ph/*"
+    ],
+    "content_scripts": [
+        {
+            "matches": [
+                "*://oses.feutech.edu.ph/*"
+            ],
+            "js": [
+                "autosched.js"
+            ],
+            "all_frames": true,
+            "run_at": "document_idle"
+        },
+        {
+            "matches": [
+                "http://localhost:*/*",
+                "https://tools.kendavila.me/*",
+                "https://web-tools-teal.vercel.app/*"
+            ],
+            "js": [
+                "bridge.js"
+            ],
+            "run_at": "document_idle"
+        }
+    ]
+}
