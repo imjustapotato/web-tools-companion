@@ -14,6 +14,10 @@ This extension is a companion tool for my [Web Tools](https://tools.kendavila.me
 ### Pre-Requisite Tree
 - [ ] Extract Curriculum (Tree Parser)
 
+### Browser Support
+- [x] Chromium-based Browsers (Google Chrome, Microsoft Edge, Brave, Opera, Vivaldi, etc.)
+- [ ] Gecko-based Browsers (Mozilla Firefox, Waterfox, Zen Browser, Librewolf, etc.)
+
 # Documentations
 - [Auto Plotter Flow](authplot.md) - The synchronization architecture between the Web Tools Companion Extension, the FEU Tech School Portal (OSES), and the Schedule Visualizer (Web Tool).
 
