@@ -4,25 +4,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Schedule Helper</title>
+    <title>Web Tools Companion</title>
     <link rel="stylesheet" href="./popup.css">
 </head>
 
 <body id="app-body">
 
+
     <header id="header">
         <div class="header-icon-container">
-            <img src="./logo128.png" alt="Web Tools Logo" class="header-icon" style="width: 32px; height: 32px;">
+            <img src="./logo128.png" alt="Web Tools Logo" class="header-icon logo-32">
         </div>
         <div>
-            <h1 class="header-title">Web Tools Companion</h1>
-            <p class="header-subtitle">Scraper & Helper</p>
+            <h1 class="header-title">Web Tools Companion Extension</h1>
+            <p class="header-subtitle">Developed by Kenn</p>
         </div>
     </header>
 
-    <div class="quick-actions" style="margin-bottom: 0.75rem;">
-        <button id="btn-open-tools"
-            style="width: 100%; background-color: #3b82f6; color: white; border: none; padding: 0.625rem; border-radius: 0.5rem; font-weight: 600; font-size: 0.875rem; cursor: pointer; transition: background-color 0.2s;">
+    <div class="quick-actions mb-3">
+        <button id="btn-open-tools" class="open-tools-btn">
             Open Web Tools
         </button>
     </div>
@@ -32,7 +32,7 @@
             <summary class="tool-group-summary">
                 <div class="summary-title-container">
                     <iconify-icon icon="lucide:calendar-range" class="summary-icon"></iconify-icon>
-                    <span class="summary-text">Schedule Visualizer</span>
+                    <span class="summary-text">Schedule Visualizer & Plotter</span>
                 </div>
                 <div class="summary-chevron-container">
                     <iconify-icon icon="lucide:chevron-down" class="summary-chevron"></iconify-icon>
@@ -45,7 +45,7 @@
                     <button id="btn-auto-sched" class="tool-btn active-btn">
                         <div class="tool-btn-left">
                             <iconify-icon icon="lucide:zap" class="tool-btn-icon zap-icon"></iconify-icon>
-                            <span class="tool-btn-text">Auto Sched (OFES)</span>
+                            <span class="tool-btn-text">Auto Plotting (FEU OSES)</span>
                         </div>
                         <iconify-icon id="auto-sched-icon" icon="ic:baseline-auto-awesome"
                             class="auto-awesome-icon"></iconify-icon>
@@ -66,13 +66,13 @@
         <button disabled class="tool-group main-disabled-btn disabled-btn">
             <div class="tool-btn-left">
                 <iconify-icon icon="lucide:network" class="network-icon"></iconify-icon>
-                Extract Curriculum
+                Extract Curriculum (Mapping)
             </div>
             <span class="wip-badge">WIP</span>
         </button>
     </div>
 
-    <div id="status-msg" class="status-message" style="display: none;"></div>
+    <div id="status-msg" class="status-message"></div>
 
     <script type="module" src="./popup.ts"></script>
     <div id="mouse-tooltip" class="mouse-tooltip">

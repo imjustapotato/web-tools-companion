@@ -12,6 +12,32 @@
    emerald-600: #059669
 */
 
+.logo-32 {
+    width: 32px;
+    height: 32px;
+}
+
+.mb-3 {
+    margin-bottom: 0.75rem;
+}
+
+.open-tools-btn {
+    width: 100%;
+    background-color: #3b82f6;
+    color: white;
+    border: none;
+    padding: 0.625rem;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.open-tools-btn:hover {
+    background-color: #2563eb;
+}
+
 * {
     box-sizing: border-box;
 }
@@ -160,7 +186,7 @@ details[open] .summary-chevron {
     padding-bottom: 0.875rem;
 }
 
-/* Javascript handles inline max-height and opacity for smooth accordion */
+/* accordion animation shit */
 .tool-group-content.collapsing {
     transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
 }

@@ -1,5 +1,5 @@
 // injected into *://oses.feutech.edu.ph/*
-// intrcept xml payloads and map them to my web tool as json schema
+// intercept xml payloads and map them to my web tool as json schema
 
 // constants
 const DAY_MAP: Record<string, number> = { 'M': 0, 'T': 1, 'W': 2, 'TH': 3, 'F': 4, 'S': 5 };
@@ -103,6 +103,17 @@ interface PlotterBlock {
     color: string;
 }
 
+interface ScheduleContainer {
+    id: string;
+    name: string;
+    blocks: PlotterBlock[];
+}
+
+interface StorageItems {
+    latestSchedule?: ScheduleContainer;
+    autoSchedEnabled?: boolean;
+}
+
 const processXMLToTargetJSON = (xmlString: string, prevBlocks: PlotterBlock[] = []) => {
     const parser = new DOMParser();
     const xmlDoc = parser.parseFromString(xmlString, "text/xml");
@@ -195,7 +206,7 @@ window.addEventListener('message', (event) => {
             return;
         }
 
-        chrome.storage.local.get(['latestSchedule', 'autoSchedEnabled'], (result) => {
+        chrome.storage.local.get(['latestSchedule', 'autoSchedEnabled'], (result: StorageItems) => {
             if (result.autoSchedEnabled) {
                 const prevBlocks = result.latestSchedule?.blocks || [];
                 processXMLToTargetJSON(event.data.data, prevBlocks);

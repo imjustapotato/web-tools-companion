@@ -1,11 +1,11 @@
-// popup.ts
 import 'iconify-icon';
+
+declare const chrome: any; // Using 'any' for simplicity since we're in a browser extension context and don't have type definitions for the Chrome API in this file.
 
 const btnAutoSched = document.getElementById('btn-auto-sched') as HTMLButtonElement;
 const statusMsg = document.getElementById('status-msg') as HTMLDivElement;
 const btnOpenTools = document.getElementById('btn-open-tools') as HTMLButtonElement;
 const autoSchedIcon = document.getElementById('auto-sched-icon') as HTMLElement;
-const autoSchedGuide = document.getElementById('auto-sched-guide') as HTMLDivElement;
 
 const showStatus = (msg: string, isError = false) => {
     statusMsg.textContent = msg;
