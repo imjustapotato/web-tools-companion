@@ -37,16 +37,68 @@ const setAutoSchedUIState = (isEnabled: boolean) => {
     }
 };
 
+const ensureTabsAreOpen = () => {
+    chrome.tabs.query({}, (tabs) => {
+        let portalOpen = false;
+
+        tabs.forEach(tab => {
+            if (tab.url?.includes('feutech.edu.ph')) portalOpen = true;
+        });
+
+        if (!portalOpen) {
+            chrome.tabs.create({ url: 'https://solar.feutech.edu.ph/course/registration' });
+        }
+    });
+};
+
 // Initialize UI from storage
+let isAutoSchedActive = false;
+const tooltip = document.getElementById('mouse-tooltip') as HTMLDivElement;
+
 chrome.storage.local.get(['autoSchedEnabled'], (result) => {
-    setAutoSchedUIState(!!result.autoSchedEnabled);
+    isAutoSchedActive = !!result.autoSchedEnabled;
+    setAutoSchedUIState(isAutoSchedActive);
+});
+
+btnAutoSched.addEventListener('mousemove', (e) => {
+    if (isAutoSchedActive) {
+        tooltip.style.left = `${e.clientX + 15}px`;
+        tooltip.style.top = `${e.clientY + 15}px`;
+    }
+});
+
+btnAutoSched.addEventListener('mouseenter', () => {
+    if (isAutoSchedActive) {
+        tooltip.style.display = 'block';
+        // force reflow
+        tooltip.offsetHeight;
+        tooltip.classList.add('visible');
+    }
+});
+
+btnAutoSched.addEventListener('mouseleave', () => {
+    tooltip.classList.remove('visible');
+    setTimeout(() => {
+        if (!tooltip.classList.contains('visible')) {
+            tooltip.style.display = 'none';
+        }
+    }, 200);
 });
 
 btnAutoSched.addEventListener('click', async () => {
     chrome.storage.local.get(['autoSchedEnabled'], (result) => {
         const newState = !result.autoSchedEnabled;
+        isAutoSchedActive = newState;
         chrome.storage.local.set({ autoSchedEnabled: newState }, () => {
             setAutoSchedUIState(newState);
+            if (newState) {
+                ensureTabsAreOpen();
+            } else {
+                chrome.storage.local.remove(['latestSchedule']);
+                // hide tooltip immediately on turn off
+                tooltip.classList.remove('visible');
+                tooltip.style.display = 'none';
+            }
         });
     });
 });
@@ -71,12 +123,12 @@ detailsElements.forEach((detail) => {
             // Opening
             detail.setAttribute('open', '');
             content.classList.add('collapsing');
-            
+
             // Calculate height and force reflow
             content.style.maxHeight = '0px';
             content.style.opacity = '0';
             content.offsetHeight; // trigger reflow
-            
+
             content.style.maxHeight = content.scrollHeight + 'px';
             content.style.opacity = '1';
 
@@ -89,12 +141,12 @@ detailsElements.forEach((detail) => {
         } else {
             // Closing
             content.classList.add('collapsing');
-            
+
             // Set exact current height before animating to 0
             content.style.maxHeight = content.scrollHeight + 'px';
             content.style.opacity = '1';
             content.offsetHeight; // trigger reflow
-            
+
             content.style.maxHeight = '0px';
             content.style.opacity = '0';
 

@@ -14,8 +14,8 @@ window.addEventListener('message', (event) => {
 syncScheduleToApp();
 
 function syncScheduleToApp() {
-    chrome.storage.local.get(['latestSchedule'], (result) => {
-        if (result.latestSchedule) {
+    chrome.storage.local.get(['latestSchedule', 'autoSchedEnabled'], (result) => {
+        if (result.latestSchedule && result.autoSchedEnabled) {
             window.postMessage({
                 type: 'WEB_TOOLS_EXTENSION_SYNC',
                 payload: result.latestSchedule

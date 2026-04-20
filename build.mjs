@@ -40,6 +40,22 @@ async function buildExtension() {
     },
   });
 
+  // Build autosched-main
+  await build({
+    ...commonViteConfig,
+    build: {
+      emptyOutDir: false,
+      outDir: 'dist',
+      rollupOptions: {
+        input: 'autosched-main.ts',
+        output: {
+          format: 'iife',
+          entryFileNames: 'autosched-main.js',
+        },
+      },
+    },
+  });
+
   // Build bridge
   await build({
     ...commonViteConfig,

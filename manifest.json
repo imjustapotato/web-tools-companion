@@ -21,13 +21,26 @@
     "content_scripts": [
         {
             "matches": [
-                "*://oses.feutech.edu.ph/*"
+                "*://oses.feutech.edu.ph/*",
+                "*://solar.feutech.edu.ph/*"
+            ],
+            "js": [
+                "autosched-main.js"
+            ],
+            "all_frames": true,
+            "run_at": "document_start",
+            "world": "MAIN"
+        },
+        {
+            "matches": [
+                "*://oses.feutech.edu.ph/*",
+                "*://solar.feutech.edu.ph/*"
             ],
             "js": [
                 "autosched.js"
             ],
             "all_frames": true,
-            "run_at": "document_idle"
+            "run_at": "document_start"
         },
         {
             "matches": [
@@ -39,6 +52,16 @@
                 "bridge.js"
             ],
             "run_at": "document_idle"
+        }
+    ],
+    "web_accessible_resources": [
+        {
+            "resources": [
+                "autosched-main.js"
+            ],
+            "matches": [
+                "*://*.feutech.edu.ph/*"
+            ]
         }
     ]
 }
