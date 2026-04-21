@@ -93,7 +93,9 @@ const SUBJECT_CATALOG: Record<string, string> = {
     'IT0204': 'IT SPECIALIZATION 7 - CYBERSECURITY AND PRIVACY: LAWS, POLICIES, AND COMPLIANCE',
     'IT0205': 'IT SPECIALIZATION 9 - CLOUD SECURITY',
     'IT0207': 'CAPSTONE PROJECT 1 CST',
-    'IT0209': 'CAPSTONE PROJECT 2 CST'
+    'IT0209': 'CAPSTONE PROJECT 2 CST',
+    'NSTP1': 'CIVIC WELFARE TRAINING SERVICE 1',
+    'NSTP2': 'CIVIC WELFARE TRAINING SERVICE 2',
 };
 
 interface PlotterBlock {
@@ -116,6 +118,119 @@ interface StorageItems {
     latestSchedule?: ScheduleContainer;
     autoSchedEnabled?: boolean;
 }
+
+interface PreservedRoomEntry {
+    roomsByMeetingSignature: Map<string, string[]>;
+    roomsInEncounterOrder: string[];
+}
+
+const DEFAULT_UNASSIGNED_ROOM = 'TBA';
+const UNASSIGNED_ROOM_MARKERS = new Set([
+    '',
+    'TBA',
+    'N/A',
+    'NA',
+    'NONE',
+    'UNASSIGNED',
+    'TBD',
+    '-',
+    '--'
+]);
+
+const normalizeRoomLabel = (room: string) => room.trim().toUpperCase();
+
+const isAssignedRoomLabel = (room: string) => !UNASSIGNED_ROOM_MARKERS.has(normalizeRoomLabel(room));
+
+const createCourseSectionKey = (courseCode: string, section: string) => `${courseCode.trim()}-${section.trim()}`;
+
+const createMeetingSignature = (day: number, start: string, end: string) => `${day}|${start.trim()}|${end.trim()}`;
+
+const consumeRoomFromSignatureQueue = (signatureQueue: string[] | undefined) => {
+    if (!signatureQueue || signatureQueue.length === 0) {
+        return null;
+    }
+
+    return signatureQueue.shift() || null;
+};
+
+const consumeRoomFromEncounterQueue = (entry: PreservedRoomEntry, preferredRoom?: string) => {
+    if (entry.roomsInEncounterOrder.length === 0) {
+        return null;
+    }
+
+    if (!preferredRoom) {
+        return entry.roomsInEncounterOrder.shift() || null;
+    }
+
+    const matchedIndex = entry.roomsInEncounterOrder.findIndex(room => room === preferredRoom);
+    if (matchedIndex === -1) {
+        return null;
+    }
+
+    const [matchedRoom] = entry.roomsInEncounterOrder.splice(matchedIndex, 1);
+    return matchedRoom || null;
+};
+
+const buildPreservedRoomIndex = (previousBlocks: PlotterBlock[]) => {
+    const preservedRoomIndex = new Map<string, PreservedRoomEntry>();
+
+    previousBlocks.forEach((block) => {
+        const rawCourseCode = block.name.split(' - ')[0].trim();
+        const roomLabel = block.room.trim();
+
+        if (!rawCourseCode || !isAssignedRoomLabel(roomLabel)) {
+            return;
+        }
+
+        const courseSectionKey = createCourseSectionKey(rawCourseCode, block.section);
+        const meetingSignature = createMeetingSignature(block.day, block.start, block.end);
+
+        if (!preservedRoomIndex.has(courseSectionKey)) {
+            preservedRoomIndex.set(courseSectionKey, {
+                roomsByMeetingSignature: new Map<string, string[]>(),
+                roomsInEncounterOrder: []
+            });
+        }
+
+        const preservedEntry = preservedRoomIndex.get(courseSectionKey)!;
+        if (!preservedEntry.roomsByMeetingSignature.has(meetingSignature)) {
+            preservedEntry.roomsByMeetingSignature.set(meetingSignature, []);
+        }
+
+        preservedEntry.roomsByMeetingSignature.get(meetingSignature)!.push(roomLabel);
+        preservedEntry.roomsInEncounterOrder.push(roomLabel);
+    });
+
+    return preservedRoomIndex;
+};
+
+const getPreservedRoomLabel = (
+    preservedRoomIndex: Map<string, PreservedRoomEntry>,
+    courseCode: string,
+    section: string,
+    day: number,
+    start: string,
+    end: string
+) => {
+    const courseSectionKey = createCourseSectionKey(courseCode, section);
+    const preservedEntry = preservedRoomIndex.get(courseSectionKey);
+
+    if (!preservedEntry) {
+        return DEFAULT_UNASSIGNED_ROOM;
+    }
+
+    const meetingSignature = createMeetingSignature(day, start, end);
+    const signatureQueue = preservedEntry.roomsByMeetingSignature.get(meetingSignature);
+    const signatureMatchedRoom = consumeRoomFromSignatureQueue(signatureQueue);
+
+    if (signatureMatchedRoom) {
+        consumeRoomFromEncounterQueue(preservedEntry, signatureMatchedRoom);
+        return signatureMatchedRoom;
+    }
+
+    const encounteredRoom = consumeRoomFromEncounterQueue(preservedEntry);
+    return encounteredRoom || DEFAULT_UNASSIGNED_ROOM;
+};
 
 // DOM Observer Logic for SAF Preview (Room Extraction)
 const SAF_PREVIEW_PATH_FRAGMENT = 'saf_preview.php';
@@ -187,6 +302,7 @@ const processXMLToTargetJSON = (xmlString: string, prevBlocks: PlotterBlock[] = 
     const items = xmlDoc.querySelectorAll("Items");
 
     const blocks: PlotterBlock[] = [];
+    const preservedRoomIndex = buildPreservedRoomIndex(prevBlocks);
     const colorMap = new Map<string, string>();
     let colorIndex = 0;
 
@@ -232,13 +348,21 @@ const processXMLToTargetJSON = (xmlString: string, prevBlocks: PlotterBlock[] = 
             if (!timeStr) return;
 
             const [start, end] = timeStr.split('-').map(t => t.trim());
+            const preservedRoomLabel = getPreservedRoomLabel(
+                preservedRoomIndex,
+                courseCode,
+                section,
+                DAY_MAP[dayStr],
+                start,
+                end
+            );
 
             blocks.push({
                 name: courseName,
                 day: DAY_MAP[dayStr],
                 start: start,
                 end: end,
-                room: "TBA",
+                room: preservedRoomLabel,
                 section: section,
                 color: color
             });
