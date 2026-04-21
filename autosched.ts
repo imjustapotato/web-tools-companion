@@ -1,5 +1,5 @@
-// injected into *://oses.feutech.edu.ph/*
 // intercept xml payloads and map them to my web tool as json schema
+import { runValidationCheck } from './dom_validator';
 
 // constants
 const DAY_MAP: Record<string, number> = { 'M': 0, 'T': 1, 'W': 2, 'TH': 3, 'F': 4, 'S': 5 };
@@ -183,6 +183,12 @@ const processXMLToTargetJSON = (xmlString: string, prevBlocks: PlotterBlock[] = 
         name: "Auto Sched Live Sync",
         blocks: blocks
     };
+
+    // DOM Integrity Check
+    // Since XHR can sometimes be faster than DOM updates, we add a small delay
+    setTimeout(() => {
+        runValidationCheck(blocks);
+    }, 1500);
 
     chrome.storage.local.set({ latestSchedule: finalJSON }, () => {
         console.log("[AutoSched] Intercepted schedule updated in storage.", finalJSON);
