@@ -117,6 +117,7 @@ interface StorageItems {
     autoSchedEnabled?: boolean;
 }
 
+// DOM Observer Logic for SAF Preview (Room Extraction)
 const SAF_PREVIEW_PATH_FRAGMENT = 'saf_preview.php';
 let safPreviewObserver: MutationObserver | null = null;
 let safPreviewExtractionCompleted = false;
