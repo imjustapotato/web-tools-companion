@@ -1,7 +1,9 @@
 // intercept xml payloads and map them to my web tool as json schema
 import { runValidationCheck } from './dom_validator';
 
-// constants
+declare const chrome: any;
+
+// constants for mapping of date and colors.
 const DAY_MAP: Record<string, number> = { 'M': 0, 'T': 1, 'W': 2, 'TH': 3, 'F': 4, 'S': 5 };
 const TW_COLORS = [
     'bg-emerald-600', 'bg-cyan-600', 'bg-indigo-600', 'bg-purple-600',
@@ -9,6 +11,7 @@ const TW_COLORS = [
     'bg-pink-600', 'bg-teal-600', 'bg-blue-600'
 ];
 
+// Exists because the extracted XML from XHR only contains the course code, this catalogue allows to map them to their full course titles.
 const SUBJECT_CATALOG: Record<string, string> = {
     'CCS0001': 'INTRODUCTION TO COMPUTING LEC',
     'CCS0001L': 'INTRODUCTION TO COMPUTING LAB',
@@ -114,6 +117,69 @@ interface StorageItems {
     autoSchedEnabled?: boolean;
 }
 
+const SAF_PREVIEW_PATH_FRAGMENT = 'saf_preview.php';
+let safPreviewObserver: MutationObserver | null = null;
+let safPreviewExtractionCompleted = false;
+
+const isSafPreviewDocument = () => window.location.pathname.includes(SAF_PREVIEW_PATH_FRAGMENT);
+
+const stopSafPreviewObserver = () => {
+    if (safPreviewObserver) {
+        safPreviewObserver.disconnect();
+        safPreviewObserver = null;
+    }
+};
+
+const tryProcessSafPreviewDocument = () => {
+    if (!isSafPreviewDocument() || safPreviewExtractionCompleted) {
+        return;
+    }
+
+    const hasAssessmentTable = document.querySelector('.assessment_schedule tbody tr');
+    if (!hasAssessmentTable) {
+        return;
+    }
+
+    chrome.storage.local.get(['autoSchedEnabled'], (result: StorageItems) => {
+        if (!result.autoSchedEnabled || safPreviewExtractionCompleted) {
+            return;
+        }
+
+        safPreviewExtractionCompleted = true;
+        stopSafPreviewObserver();
+        console.log("[AutoSched] SAF Preview context detected. Executing room extraction...");
+        processSAFDocument(document);
+    });
+};
+
+const startSafPreviewObserver = () => {
+    if (!isSafPreviewDocument() || safPreviewExtractionCompleted) {
+        return;
+    }
+
+    tryProcessSafPreviewDocument();
+
+    if (safPreviewExtractionCompleted || safPreviewObserver) {
+        return;
+    }
+
+    const observationTarget = document.documentElement || document;
+    safPreviewObserver = new MutationObserver(() => {
+        tryProcessSafPreviewDocument();
+    });
+
+    safPreviewObserver.observe(observationTarget, {
+        childList: true,
+        subtree: true,
+    });
+};
+
+chrome.storage.onChanged.addListener((changes: Record<string, { oldValue: unknown; newValue: unknown }>, namespace: string) => {
+    if (namespace === 'local' && changes.autoSchedEnabled?.newValue && isSafPreviewDocument()) {
+        startSafPreviewObserver();
+    }
+});
+// XML Schedule Parser Logic
 const processXMLToTargetJSON = (xmlString: string, prevBlocks: PlotterBlock[] = []) => {
     const parser = new DOMParser();
     const xmlDoc = parser.parseFromString(xmlString, "text/xml");
@@ -197,9 +263,80 @@ const processXMLToTargetJSON = (xmlString: string, prevBlocks: PlotterBlock[] = 
     return finalJSON;
 };
 
+// SAF DOCUMENT PARSER LOGIC
+const processSAFDocument = (doc: Document) => {
+    const rows = doc.querySelectorAll('.assessment_schedule tbody tr');
+    const roomMap = new Map<string, string[]>();
+
+    rows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        // Valid SAF rows have 7 columns
+        if (cells.length >= 7) {
+            const courseCode = cells[0]?.textContent?.trim() || "";
+            const section = cells[2]?.textContent?.trim() || "";
+            const roomStr = cells[6]?.textContent?.trim() || "";
+
+            // Ignore footers or empty rows
+            if (!courseCode || courseCode.includes('TOTAL UNITS')) return;
+
+            const key = `${courseCode}-${section}`;
+            // Handle split rooms like "F706 / F1204"
+            const rooms = roomStr.split('/').map(r => r.trim());
+            roomMap.set(key, rooms);
+        }
+    });
+
+    console.log("[AutoSched] Extracted Room Map from SAF:", roomMap);
+
+    // Merge into existing storage
+    chrome.storage.local.get(['latestSchedule'], (result: StorageItems) => {
+        if (!result.latestSchedule) {
+            console.warn("[AutoSched] No existing schedule found to merge rooms into.");
+            return;
+        }
+
+        const schedule = result.latestSchedule;
+        let isUpdated = false;
+        
+        // Track room assignments to handle split schedules correctly sequentially
+        const roomUsageTracker = new Map<string, number>();
+
+        schedule.blocks.forEach((block) => {
+            // Reconstruct the raw course code (e.g., "CCS0015L") to match the SAF map
+            const rawCourseCode = block.name.split(' - ')[0].trim();
+            const key = `${rawCourseCode}-${block.section}`;
+
+            if (roomMap.has(key)) {
+                const availableRooms = roomMap.get(key)!;
+                let usageIndex = roomUsageTracker.get(key) || 0;
+
+                const assignedRoom = availableRooms[usageIndex] || availableRooms[availableRooms.length - 1] || "TBA";
+
+                if (block.room !== assignedRoom) {
+                    block.room = assignedRoom;
+                    isUpdated = true;
+                }
+
+                roomUsageTracker.set(key, usageIndex + 1);
+            }
+        });
+
+        if (isUpdated) {
+            chrome.storage.local.set({ latestSchedule: schedule }, () => {
+                console.log("[AutoSched] Room assignments merged successfully!", schedule);
+            });
+        }
+    });
+};
+
 // Relay listener
+// Check A: Are we inside the SAF Preview document right now?
+if (isSafPreviewDocument()) {
+    startSafPreviewObserver();
+}
+
+// Check B: We are in the main portal. Listen for the XML XHR Intercepts.
 window.addEventListener('message', (event) => {
-    // Accept only from own window
     if (event.source === window && event.data.type === 'OSES_SCHEDULE_INTERCEPT') {
         const action = event.data.action || "unknown";
         const url = event.data.url || "unknown";
@@ -222,5 +359,4 @@ window.addEventListener('message', (event) => {
         });
     }
 });
-
 console.log("[AutoSched] Interceptor relay armed.");

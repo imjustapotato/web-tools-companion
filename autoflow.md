@@ -4,7 +4,7 @@ This document outlines the synchronization architecture between the **Web Tools 
 
 ## Synchronization Sequence
 
-The following diagram illustrates the lifecycle of a schedule synchronization event, from initial activation to real-time updates.
+The following diagram illustrates the lifecycle of a schedule synchronization event, from initial activation to real-time updates. OSES operates in an iframe of a different domain `oses.feutech.edu.ph`, while the Main Portal operates at `solar.feutech.edu.ph` (Cross Domain).
 
 ```mermaid
 sequenceDiagram
@@ -59,6 +59,36 @@ sequenceDiagram
     window-->>ScriptISO: Receive Intercept
     ScriptISO->>Storage: Update storage & notify Bridge
     Bridge->>WebApp: Push Real-time Update
+```
+
+## Room Assignment Flow (SAF Preview)
+
+The extension also supports room assignment extraction from the SAF Preview page. But `saf_preview.php` isn't intercepted as XHR therefore Room Assingment cannot be automated, it relies on the user to click the **Preview SAF** button inside OSES, the extension relies on DOM observation to extract room data directly from the rendered table. While Smartly Compare the extracted data `Course Code + Section -> Room Assignment` with the existing schedule in `chrome.storage.local` and merges any new room assignments without overwriting unchanged data.
+
+**Sequence:**
+
+```mermaid
+sequenceDiagram
+     autonumber
+     participant User
+     participant Portal as Main Portal (solar.feutech.edu.ph)
+     participant SAF as SAF Preview Iframe (oses.feutech.edu.ph)
+     participant ScriptISO as autosched.ts (Isolated World)
+     participant Storage as chrome.storage.local
+     participant Bridge as bridge.ts
+     participant WebApp as Schedule Visualizer
+
+     User->>Portal: Open SAF Preview
+     Portal->>SAF: Load saf_preview.php (iframe)
+     SAF->>ScriptISO: Injected at document_start
+     ScriptISO->>ScriptISO: Wait for .assessment_schedule table
+     alt Table appears & AutoSched enabled
+          ScriptISO->>ScriptISO: Parse room assignments
+          ScriptISO->>Storage: Merge rooms into latestSchedule
+          Storage-->>Bridge: Notify update
+          Bridge->>WebApp: Push Real-time Update
+          WebApp->>WebApp: Render updated rooms
+     end
 ```
 
 ## Key Components
