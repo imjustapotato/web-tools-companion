@@ -1,7 +1,7 @@
 {
   "name": "web-tools-helper",
   "version": "1.0.0",
-  "description": "",
+  "description": "A companion extension for my Web Tools website.",
   "main": "index.js",
   "scripts": {
     "dev": "node build.mjs",
