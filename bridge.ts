@@ -8,10 +8,40 @@ window.addEventListener('message', (event) => {
     if (event.data.type === 'WEB_TOOLS_APP_READY' || event.data.type === 'WEB_TOOLS_REQUEST_SYNC') {
         syncScheduleToApp();
     }
+
+    if (event.data.type === 'WEB_TOOLS_HEARTBEAT_REQUEST' || event.data.type === 'WEB_TOOLS_APP_READY') {
+        sendHeartbeatResponse();
+    }
+});
+
+// Listen for push updates from the background script
+chrome.runtime.onMessage.addListener((message) => {
+    if (message.type === 'HEARTBEAT_UPDATE') {
+        window.postMessage({
+            type: 'WEB_TOOLS_HEARTBEAT_RESPONSE',
+            payload: message.payload
+        }, '*');
+    }
 });
 
 // Also try to push automatically on load
 syncScheduleToApp();
+sendHeartbeatResponse();
+
+function sendHeartbeatResponse() {
+    chrome.runtime.sendMessage({ type: 'GET_HEARTBEAT_DATA' }, (response) => {
+        if (chrome.runtime.lastError) {
+            // Background might not be ready yet, ignore silently or log
+            return;
+        }
+        if (response) {
+            window.postMessage({
+                type: 'WEB_TOOLS_HEARTBEAT_RESPONSE',
+                payload: response
+            }, '*');
+        }
+    });
+}
 
 function syncScheduleToApp() {
     chrome.storage.local.get(['latestSchedule', 'autoSchedEnabled'], (result) => {
