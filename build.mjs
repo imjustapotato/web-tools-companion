@@ -37,7 +37,12 @@ const commonViteConfig = {
   }
 };
 
-async function createZip(sourceDir, outPath) {
+/**
+ * Zip Packaging Logic
+ * Compresses the distribution folder into a production-ready ZIP file 
+ * for Chrome Web Store or internal distribution.
+ */
+function createZip(sourceDir, outPath) {
   if (!fs.existsSync(nodePath.dirname(outPath))) {
     fs.mkdirSync(nodePath.dirname(outPath), { recursive: true });
   }
@@ -58,11 +63,18 @@ async function createZip(sourceDir, outPath) {
   });
 }
 
+/**
+ * Core Build Pipeline
+ * 1. Bundles popup UI with Vite.
+ * 2. Compiles TypeScript entry points (Background, Bridge, Injected scripts).
+ * 3. Copies static manifests and assets.
+ * 4. (Optional) Obfuscates and packages for release.
+ */
 async function buildExtension() {
   console.log(`[Build] Starting build... (Obfuscate: ${isObfuscate}, Package: ${isPackage})`);
   console.log(`[Build] Output Directory: ${outDir}`);
 
-  // Build popup
+  // Build popup UI.
   await build({
     ...commonViteConfig,
     build: {
@@ -75,7 +87,7 @@ async function buildExtension() {
     }
   });
 
-  // Entry points to build
+  // Script entry points.
   const entries = [
     { input: 'autosched.ts', output: 'autosched.js' },
     { input: 'autosched-main.ts', output: 'autosched-main.js' },
@@ -101,7 +113,7 @@ async function buildExtension() {
     });
   }
 
-  // Copy static assets
+  // Copy extension assets.
   fs.copyFileSync('manifest.json', nodePath.resolve(outDir, 'manifest.json'));
   fs.copyFileSync('popup.css', nodePath.resolve(outDir, 'popup.css'));
   fs.copyFileSync('src/assets/logo128.png', nodePath.resolve(outDir, 'logo128.png'));

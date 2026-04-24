@@ -12,6 +12,7 @@
    emerald-600: #059669
 */
 
+/* Utility classes */
 .logo-32 {
     width: 32px;
     height: 32px;
@@ -42,6 +43,7 @@
     box-sizing: border-box;
 }
 
+/* Root and layout */
 #app-body {
     width: 360px;
     font-family: system-ui, -apple-system, sans-serif;
@@ -51,6 +53,7 @@
     margin: 0;
 }
 
+/* Header section */
 #header {
     display: flex;
     align-items: center;
@@ -90,6 +93,7 @@
     margin-bottom: 0;
 }
 
+/* Tool listing and grouping */
 .tool-list {
     display: flex;
     flex-direction: column;
@@ -186,7 +190,7 @@ details[open] .summary-chevron {
     padding-bottom: 0.875rem;
 }
 
-/* accordion animation shit */
+/* Custom accordion transitions (manual handling for <details>) */
 .tool-group-content.collapsing {
     transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
 }
@@ -375,6 +379,7 @@ details[open] .summary-chevron {
     line-height: 1.4;
 }
 
+/* Interactive Tooltip UI */
 .mouse-tooltip {
     position: fixed;
     pointer-events: none;

@@ -1,9 +1,18 @@
-// Background Service Worker for Web Tools Companion
+// Background service worker.
+
+const PORTAL_URLS = [
+    '*://oses.feutech.edu.ph/*',
+    '*://solar.feutech.edu.ph/*',
+    '*://oses.feualabang.edu.ph/*',
+    '*://solar.feualabang.edu.ph/*',
+    '*://oses.feudiliman.edu.ph/*',
+    '*://solar.feudiliman.edu.ph/*'
+];
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === 'GET_HEARTBEAT_DATA') {
         // Step 1: Check if any Portal tab is open
-        chrome.tabs.query({ url: ['*://oses.feutech.edu.ph/*', '*://solar.feutech.edu.ph/*'] }, (tabs) => {
+        chrome.tabs.query({ url: PORTAL_URLS }, (tabs) => {
             const isPortalOpen = tabs && tabs.length > 0;
             
             // Step 2: Check autoSchedEnabled from storage
@@ -24,9 +33,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
 });
 
-// Broadcast status to all Web Tools tabs whenever something relevant changes
+/* Broadcast status to web tools. */
 function broadcastStatus() {
-    chrome.tabs.query({ url: ['*://oses.feutech.edu.ph/*', '*://solar.feutech.edu.ph/*'] }, (portalTabs) => {
+    chrome.tabs.query({ url: PORTAL_URLS }, (portalTabs) => {
         const isPortalOpen = portalTabs && portalTabs.length > 0;
         
         chrome.storage.local.get(['autoSchedEnabled'], (result) => {
@@ -58,11 +67,11 @@ function broadcastStatus() {
     });
 }
 
-// Watch for tab changes
+/* Lifecycle observers. */
 chrome.tabs.onUpdated.addListener(broadcastStatus);
 chrome.tabs.onRemoved.addListener(broadcastStatus);
 
-// Watch for setting changes
+/* Setting observers. */
 chrome.storage.onChanged.addListener((changes, namespace) => {
     if (namespace === 'local' && changes.autoSchedEnabled) {
         broadcastStatus();

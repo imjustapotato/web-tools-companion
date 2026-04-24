@@ -19,6 +19,7 @@ const openVisualizer = () => {
 
 btnOpenTools.addEventListener('click', openVisualizer);
 
+/* UI State management for auto-plotting toggle */
 const setAutoSchedUIState = (isEnabled: boolean) => {
     if (isEnabled) {
         // Active "Listening" State
@@ -37,19 +38,42 @@ const setAutoSchedUIState = (isEnabled: boolean) => {
     }
 };
 
+/* Automation context validation (ensuring portal and tools are open) */
 const ensureTabsAreOpen = () => {
-    chrome.tabs.query({}, (tabs) => {
+    chrome.tabs.query({}, (tabs: any[]) => {
         let portalOpen = false;
+        let toolOpen = false;
 
         tabs.forEach(tab => {
-            if (tab.url?.includes('feutech.edu.ph')) portalOpen = true;
+            const url = tab.url || "";
+            // Check for any FEU Portal branch
+            if (
+                url.includes('feutech.edu.ph') || 
+                url.includes('feualabang.edu.ph') || 
+                url.includes('feudiliman.edu.ph')
+            ) {
+                portalOpen = true;
+            }
+            // Check for the Web Tools visualizer
+            if (
+                url.includes('localhost') || 
+                url.includes('tools.kendavila.me') || 
+                url.includes('web-tools-teal.vercel.app')
+            ) {
+                toolOpen = true;
+            }
         });
 
         if (!portalOpen) {
             chrome.tabs.create({ url: 'https://solar.feutech.edu.ph/course/registration' });
         }
+        
+        if (!toolOpen) {
+            chrome.tabs.create({ url: 'https://tools.kendavila.me/' });
+        }
     });
 };
+
 
 // Initialize UI from storage
 let isAutoSchedActive = false;
@@ -103,7 +127,7 @@ btnAutoSched.addEventListener('click', async () => {
     });
 });
 
-// Smooth Accordion Logic
+/* Smooth Accordion Logic (Manual Animation Handling for <details>) */
 const detailsElements = document.querySelectorAll('details.tool-group');
 
 detailsElements.forEach((detail) => {

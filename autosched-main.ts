@@ -1,4 +1,4 @@
-// This script is injected into the MAIN world of the page to bypass CSP restrictions on inline scripts.
+// Injected into MAIN world to bypass CSP.
 (function () {
     const originalOpen = XMLHttpRequest.prototype.open;
     XMLHttpRequest.prototype.open = function (
@@ -29,7 +29,7 @@
         this.addEventListener('load', function (this: XMLHttpRequest & { _url?: string }) {
             const responseText = this.responseText || "";
             if (typeof responseText === 'string') {
-                // Trap 1: The standard Enrollment XML sync
+                // Intercept enrollment XML sync.
                 if (responseText.includes('<course_enrolled>')) {
                     window.postMessage({
                         type: 'OSES_SCHEDULE_INTERCEPT',
@@ -38,7 +38,7 @@
                         url: this._url
                     }, '*');
                 }
-                // If more traps are needed in the future, append here.
+                // Future interceptors go here.
             }
         });
 

@@ -1,9 +1,9 @@
-// intercept xml payloads and map them to my web tool as json schema
+// Map XML payloads to JSON schema.
 import { runValidationCheck } from './dom_validator';
 
 declare const chrome: any;
 
-// constants for mapping of date and colors.
+// Constants for mapping of date and colors.
 const DAY_MAP: Record<string, number> = { 'M': 0, 'T': 1, 'W': 2, 'TH': 3, 'F': 4, 'S': 5 };
 const TW_COLORS = [
     'bg-emerald-600', 'bg-cyan-600', 'bg-indigo-600', 'bg-purple-600',
@@ -11,9 +11,8 @@ const TW_COLORS = [
     'bg-pink-600', 'bg-teal-600', 'bg-blue-600'
 ];
 
-// Import Subject Mapping.
-// Exists because the extracted XML from XHR only contains the course code, 
-// this catalogue allows to map them to their full course titles.
+// Subject mapping for course codes.
+// Extracted XML from XHR only contains the code; this catalog maps full titles.
 import { SUBJECT_CATALOG } from './subsmapping';
 
 interface PlotterBlock {
@@ -89,6 +88,11 @@ const consumeRoomFromEncounterQueue = (entry: PreservedRoomEntry, preferredRoom?
     return matchedRoom || null;
 };
 
+/**
+ * Room Preservation Logic
+ * Indexes rooms from a previous schedule by subject and time to maintain 
+ * consistency when the network payload (XHR) returns empty room tags.
+ */
 const buildPreservedRoomIndex = (previousBlocks: PlotterBlock[]) => {
     const preservedRoomIndex = new Map<string, PreservedRoomEntry>();
 

@@ -11,6 +11,7 @@
 <body id="app-body">
 
 
+    <!-- Extension Header -->
     <header id="header">
         <div class="header-icon-container">
             <img src="./logo128.png" alt="Web Tools Logo" class="header-icon logo-32">
@@ -21,12 +22,14 @@
         </div>
     </header>
 
+    <!-- Quick access to main web app -->
     <div class="quick-actions mb-3">
         <button id="btn-open-tools" class="open-tools-btn">
             Open Web Tools
         </button>
     </div>
 
+    <!-- Interactive tool group list -->
     <div class="tool-list">
         <details class="tool-group" open>
             <summary class="tool-group-summary">
@@ -75,6 +78,7 @@
     <div id="status-msg" class="status-message"></div>
 
     <script type="module" src="./popup.ts"></script>
+    <!-- Dynamic tooltip for active auto-plotting state -->
     <div id="mouse-tooltip" class="mouse-tooltip">
         Listening for schedule changes. Add/remove subjects here to sync them automatically!
     </div>

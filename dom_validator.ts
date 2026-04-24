@@ -1,4 +1,4 @@
-// Purpose: Scrape the ExtJS UI directly to validate the XHR payload or act as a fallback
+// Scrape the ExtJS UI directly to validate the XHR payload or act as a fallback
 
 export interface ScrapedCourse {
     course: string;

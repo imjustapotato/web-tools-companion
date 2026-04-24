@@ -20,6 +20,8 @@
     ],
     "host_permissions": [
         "*://*.feutech.edu.ph/*",
+        "*://*.feualabang.edu.ph/*",
+        "*://*.feudiliman.edu.ph/*",
         "*://localhost/*",
         "https://tools.kendavila.me/*",
         "https://web-tools-teal.vercel.app/*"
@@ -28,7 +30,11 @@
         {
             "matches": [
                 "*://oses.feutech.edu.ph/*",
-                "*://solar.feutech.edu.ph/*"
+                "*://solar.feutech.edu.ph/*",
+                "*://oses.feualabang.edu.ph/*",
+                "*://solar.feualabang.edu.ph/*",
+                "*://oses.feudiliman.edu.ph/*",
+                "*://solar.feudiliman.edu.ph/*"
             ],
             "js": [
                 "autosched-main.js"
@@ -40,7 +46,11 @@
         {
             "matches": [
                 "*://oses.feutech.edu.ph/*",
-                "*://solar.feutech.edu.ph/*"
+                "*://solar.feutech.edu.ph/*",
+                "*://oses.feualabang.edu.ph/*",
+                "*://solar.feualabang.edu.ph/*",
+                "*://oses.feudiliman.edu.ph/*",
+                "*://solar.feudiliman.edu.ph/*"
             ],
             "js": [
                 "autosched.js"
@@ -66,8 +76,11 @@
                 "autosched-main.js"
             ],
             "matches": [
-                "*://*.feutech.edu.ph/*"
+                "*://*.feutech.edu.ph/*",
+                "*://*.feualabang.edu.ph/*",
+                "*://*.feudiliman.edu.ph/*"
             ]
         }
     ]
+
 }
