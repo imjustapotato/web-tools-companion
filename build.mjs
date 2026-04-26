@@ -91,6 +91,7 @@ async function buildExtension() {
   const entries = [
     { input: 'autosched.ts', output: 'autosched.js' },
     { input: 'autosched-main.ts', output: 'autosched-main.js' },
+    { input: 'saf-scraper.ts', output: 'saf-scraper.js' },
     { input: 'bridge.ts', output: 'bridge.js' },
     { input: 'background.ts', output: 'background.js' }
   ];

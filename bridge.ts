@@ -1,4 +1,5 @@
 // Injected into web-tools domains to pass the extension's data into the window context
+import { beamLog } from './logger';
 
 // Listen for messages from the web app (in case it explicitly requests data)
 window.addEventListener('message', (event) => {
@@ -22,6 +23,19 @@ chrome.runtime.onMessage.addListener((message) => {
             payload: message.payload
         }, '*');
     }
+
+    if (message.type === 'SYNC_DATA') {
+        if (message.payload) {
+            // Hand-delivery: Push directly to app without waiting for storage
+            window.postMessage({
+                type: 'WEB_TOOLS_EXTENSION_SYNC',
+                payload: message.payload
+            }, '*');
+            beamLog("Direct data sync delivered to Visualizer", 'success');
+        } else {
+            syncScheduleToApp();
+        }
+    }
 });
 
 // Also try to push automatically on load
@@ -44,13 +58,13 @@ function sendHeartbeatResponse() {
 }
 
 function syncScheduleToApp() {
-    chrome.storage.local.get(['latestSchedule', 'autoSchedEnabled'], (result) => {
-        if (result.latestSchedule && result.autoSchedEnabled) {
+    chrome.storage.local.get(['latestSchedule'], (result) => {
+        if (result.latestSchedule) {
             window.postMessage({
                 type: 'WEB_TOOLS_EXTENSION_SYNC',
                 payload: result.latestSchedule
             }, '*');
-            console.log("[Web Tools Bridge] Schedule payload pushed to web app.");
+            beamLog("Schedule payload pushed to Visualizer", 'success');
         }
     });
 }
@@ -58,14 +72,10 @@ function syncScheduleToApp() {
 // Listen for live updates from the interceptor in real time
 chrome.storage.onChanged.addListener((changes, namespace) => {
     if (namespace === 'local' && changes.latestSchedule) {
-        chrome.storage.local.get(['autoSchedEnabled'], (result) => {
-            if (result.autoSchedEnabled) {
-                window.postMessage({
-                    type: 'WEB_TOOLS_EXTENSION_SYNC',
-                    payload: changes.latestSchedule.newValue
-                }, '*');
-                console.log("[Web Tools Bridge] Real-time schedule update pushed to web app.");
-            }
-        });
+        window.postMessage({
+            type: 'WEB_TOOLS_EXTENSION_SYNC',
+            payload: changes.latestSchedule.newValue
+        }, '*');
+        beamLog("Real-time update pushed to Visualizer", 'success');
     }
 });

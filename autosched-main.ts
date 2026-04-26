@@ -31,12 +31,17 @@
             if (typeof responseText === 'string') {
                 // Intercept enrollment XML sync.
                 if (responseText.includes('<course_enrolled>')) {
-                    window.postMessage({
-                        type: 'OSES_SCHEDULE_INTERCEPT',
-                        data: responseText,
-                        action: requestAction,
-                        url: this._url
-                    }, '*');
+                    const host = window.location.hostname.toLowerCase();
+                    const isEnrollmentPortal = host.includes('oses') || host === 'localhost' || host === '127.0.0.1';
+                    
+                    if (isEnrollmentPortal) {
+                        window.postMessage({
+                            type: 'OSES_SCHEDULE_INTERCEPT',
+                            data: responseText,
+                            action: requestAction,
+                            url: this._url
+                        }, '*');
+                    }
                 }
                 // Future interceptors go here.
             }

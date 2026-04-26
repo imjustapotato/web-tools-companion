@@ -34,7 +34,8 @@
                 "*://oses.feualabang.edu.ph/*",
                 "*://solar.feualabang.edu.ph/*",
                 "*://oses.feudiliman.edu.ph/*",
-                "*://solar.feudiliman.edu.ph/*"
+                "*://solar.feudiliman.edu.ph/*",
+                "*://localhost/*"
             ],
             "js": [
                 "autosched-main.js"
@@ -50,10 +51,12 @@
                 "*://oses.feualabang.edu.ph/*",
                 "*://solar.feualabang.edu.ph/*",
                 "*://oses.feudiliman.edu.ph/*",
-                "*://solar.feudiliman.edu.ph/*"
+                "*://solar.feudiliman.edu.ph/*",
+                "*://localhost/*"
             ],
             "js": [
-                "autosched.js"
+                "autosched.js",
+                "saf-scraper.js"
             ],
             "all_frames": true,
             "run_at": "document_start"

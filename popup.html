@@ -8,80 +8,116 @@
     <link rel="stylesheet" href="./popup.css">
 </head>
 
-<body id="app-body">
+<body>
 
-
-    <!-- Extension Header -->
+    <!-- Header Section -->
     <header id="header">
         <div class="header-icon-container">
-            <img src="./logo128.png" alt="Web Tools Logo" class="header-icon logo-32">
+            <img src="./logo128.png" alt="Web Tools Logo" class="header-icon">
         </div>
-        <div>
-            <h1 class="header-title">Web Tools Companion Extension</h1>
+        <div class="header-content">
+            <h1 class="header-title">Web Tools Companion</h1>
             <p class="header-subtitle">Developed by Kenn</p>
         </div>
+        <button id="btn-reset-data" class="icon-btn" title="Reset All Extension Data">
+            <iconify-icon icon="lucide:refresh-ccw" width="18"></iconify-icon>
+        </button>
     </header>
 
-    <!-- Quick access to main web app -->
-    <div class="quick-actions mb-3">
-        <button id="btn-open-tools" class="open-tools-btn">
-            Open Web Tools
+    <!-- Primary Action -->
+    <div class="mb-4">
+        <button id="btn-open-tools" class="primary-action-btn">
+            <iconify-icon icon="lucide:external-link" width="18"></iconify-icon>
+            Open Schedule Visualizer
         </button>
     </div>
 
-    <!-- Interactive tool group list -->
+    <!-- Tool Ecosystem -->
     <div class="tool-list">
+        
+        <!-- Tool 1: Schedule Mapping -->
         <details class="tool-group" open>
             <summary class="tool-group-summary">
                 <div class="summary-title-container">
-                    <iconify-icon icon="lucide:calendar-range" class="summary-icon"></iconify-icon>
-                    <span class="summary-text">Schedule Plotter & Visualizer</span>
+                    <iconify-icon icon="lucide:calendar-days" class="summary-icon"></iconify-icon>
+                    <span>Schedule Plotter</span>
                 </div>
-                <div class="summary-chevron-container">
+                <div style="display: flex; align-items: center;">
+                    <div id="data-status-badge" class="status-badge hidden" style="margin-right: 0.75rem;">
+                        <span class="badge-dot"></span>
+                        <span class="badge-text">Saved</span>
+                    </div>
                     <iconify-icon icon="lucide:chevron-down" class="summary-chevron"></iconify-icon>
                 </div>
             </summary>
 
             <div class="tool-group-content">
                 <div class="tool-group-inner">
-
+                    
                     <button id="btn-auto-sched" class="tool-btn active-btn">
                         <div class="tool-btn-left">
                             <iconify-icon icon="lucide:zap" class="tool-btn-icon zap-icon"></iconify-icon>
-                            <span class="tool-btn-text">Auto Plotting (FEU OSES)</span>
+                            <span class="tool-btn-text">Auto-Sync (FEU OSES)</span>
                         </div>
-                        <iconify-icon id="auto-sched-icon" icon="ic:baseline-auto-awesome"
-                            class="auto-awesome-icon"></iconify-icon>
+                        <iconify-icon id="auto-sched-icon" icon="ic:baseline-auto-awesome" class="auto-awesome-icon"></iconify-icon>
                     </button>
 
-                    <button disabled class="tool-btn disabled-btn">
+                    <button id="btn-extract-saf" class="tool-btn">
                         <div class="tool-btn-left">
-                            <iconify-icon icon="lucide:file-text"></iconify-icon>
-                            Extract from COR
+                            <iconify-icon icon="lucide:file-text" class="tool-btn-icon"></iconify-icon>
+                            <span>Extract from SAF</span>
                         </div>
-                        <span class="wip-badge">WIP</span>
+                        <iconify-icon icon="lucide:download" class="tool-btn-icon"></iconify-icon>
                     </button>
 
                 </div>
             </div>
         </details>
 
-        <button disabled class="tool-group main-disabled-btn disabled-btn">
-            <div class="tool-btn-left">
-                <iconify-icon icon="lucide:network" class="network-icon"></iconify-icon>
-                Extract Curriculum (Mapping)
+        <!-- Tool 2: Curriculum Mapping (WIP) -->
+        <div class="tool-group disabled-btn">
+            <div class="tool-group-summary">
+                <div class="summary-title-container">
+                    <iconify-icon icon="lucide:network" class="summary-icon" style="color: var(--text-muted)"></iconify-icon>
+                    <span style="color: var(--text-secondary)">Curriculum Mapping</span>
+                </div>
+                <span class="wip-badge">COMING SOON</span>
             </div>
-            <span class="wip-badge">WIP</span>
-        </button>
+        </div>
+
+        <!-- Developer / Activity Console -->
+        <details class="tool-group">
+            <summary class="tool-group-summary">
+                <div class="summary-title-container">
+                    <iconify-icon icon="lucide:terminal" class="summary-icon"></iconify-icon>
+                    <span>Activity Log</span>
+                </div>
+                <iconify-icon icon="lucide:chevron-down" class="summary-chevron"></iconify-icon>
+            </summary>
+
+            <div class="tool-group-content">
+                <div class="tool-group-inner">
+                    <div id="console-output" class="console-window">
+                        <div class="console-line">
+                            <span class="console-time">[System]</span>
+                            <span class="log-info">Console initialized. Awaiting logs...</span>
+                        </div>
+                    </div>
+                    <div class="console-actions">
+                        <button id="btn-clear-console" class="console-action-btn">Clear Log</button>
+                    </div>
+                </div>
+            </div>
+        </details>
+
     </div>
 
-    <div id="status-msg" class="status-message"></div>
+    <!-- Interactive Tooltip for Listen State -->
+    <div id="mouse-tooltip" class="mouse-tooltip">
+        Monitoring for schedule changes. Add or remove subjects to sync automatically!
+    </div>
 
     <script type="module" src="./popup.ts"></script>
-    <!-- Dynamic tooltip for active auto-plotting state -->
-    <div id="mouse-tooltip" class="mouse-tooltip">
-        Listening for schedule changes. Add/remove subjects here to sync them automatically!
-    </div>
 </body>
 
 </html>

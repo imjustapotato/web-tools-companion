@@ -1,19 +1,15 @@
-// Map XML payloads to JSON schema.
 import { runValidationCheck } from './dom_validator';
+import { SUBJECT_CATALOG } from './subsmapping';
+import { beamLog } from './logger';
 
 declare const chrome: any;
 
-// Constants for mapping of date and colors.
 const DAY_MAP: Record<string, number> = { 'M': 0, 'T': 1, 'W': 2, 'TH': 3, 'F': 4, 'S': 5 };
 const TW_COLORS = [
     'bg-emerald-600', 'bg-cyan-600', 'bg-indigo-600', 'bg-purple-600',
     'bg-rose-600', 'bg-amber-600', 'bg-sky-600', 'bg-lime-600',
     'bg-pink-600', 'bg-teal-600', 'bg-blue-600'
 ];
-
-// Subject mapping for course codes.
-// Extracted XML from XHR only contains the code; this catalog maps full titles.
-import { SUBJECT_CATALOG } from './subsmapping';
 
 interface PlotterBlock {
     name: string;
@@ -28,6 +24,7 @@ interface PlotterBlock {
 interface ScheduleContainer {
     id: string;
     name: string;
+    source?: string;
     blocks: PlotterBlock[];
 }
 
@@ -43,56 +40,34 @@ interface PreservedRoomEntry {
 
 const DEFAULT_UNASSIGNED_ROOM = 'TBA';
 const UNASSIGNED_ROOM_MARKERS = new Set([
-    '',
-    'TBA',
-    'N/A',
-    'NA',
-    'NONE',
-    'UNASSIGNED',
-    'TBD',
-    '-',
-    '--'
+    '', 'TBA', 'N/A', 'NA', 'NONE', 'UNASSIGNED', 'TBD', '-', '--'
 ]);
 
 const normalizeRoomLabel = (room: string) => room.trim().toUpperCase();
-
 const isAssignedRoomLabel = (room: string) => !UNASSIGNED_ROOM_MARKERS.has(normalizeRoomLabel(room));
-
 const createCourseSectionKey = (courseCode: string, section: string) => `${courseCode.trim()}-${section.trim()}`;
-
 const createMeetingSignature = (day: number, start: string, end: string) => `${day}|${start.trim()}|${end.trim()}`;
 
 const consumeRoomFromSignatureQueue = (signatureQueue: string[] | undefined) => {
-    if (!signatureQueue || signatureQueue.length === 0) {
-        return null;
-    }
-
+    if (!signatureQueue || signatureQueue.length === 0) return null;
     return signatureQueue.shift() || null;
 };
 
 const consumeRoomFromEncounterQueue = (entry: PreservedRoomEntry, preferredRoom?: string) => {
-    if (entry.roomsInEncounterOrder.length === 0) {
-        return null;
-    }
+    if (entry.roomsInEncounterOrder.length === 0) return null;
 
     if (!preferredRoom) {
         return entry.roomsInEncounterOrder.shift() || null;
     }
 
     const matchedIndex = entry.roomsInEncounterOrder.findIndex(room => room === preferredRoom);
-    if (matchedIndex === -1) {
-        return null;
-    }
+    if (matchedIndex === -1) return null;
 
     const [matchedRoom] = entry.roomsInEncounterOrder.splice(matchedIndex, 1);
     return matchedRoom || null;
 };
 
-/**
- * Room Preservation Logic
- * Indexes rooms from a previous schedule by subject and time to maintain 
- * consistency when the network payload (XHR) returns empty room tags.
- */
+// Room Preservation Logic
 const buildPreservedRoomIndex = (previousBlocks: PlotterBlock[]) => {
     const preservedRoomIndex = new Map<string, PreservedRoomEntry>();
 
@@ -100,9 +75,7 @@ const buildPreservedRoomIndex = (previousBlocks: PlotterBlock[]) => {
         const rawCourseCode = block.name.split(' - ')[0].trim();
         const roomLabel = block.room.trim();
 
-        if (!rawCourseCode || !isAssignedRoomLabel(roomLabel)) {
-            return;
-        }
+        if (!rawCourseCode || !isAssignedRoomLabel(roomLabel)) return;
 
         const courseSectionKey = createCourseSectionKey(rawCourseCode, block.section);
         const meetingSignature = createMeetingSignature(block.day, block.start, block.end);
@@ -137,9 +110,7 @@ const getPreservedRoomLabel = (
     const courseSectionKey = createCourseSectionKey(courseCode, section);
     const preservedEntry = preservedRoomIndex.get(courseSectionKey);
 
-    if (!preservedEntry) {
-        return DEFAULT_UNASSIGNED_ROOM;
-    }
+    if (!preservedEntry) return DEFAULT_UNASSIGNED_ROOM;
 
     const meetingSignature = createMeetingSignature(day, start, end);
     const signatureQueue = preservedEntry.roomsByMeetingSignature.get(meetingSignature);
@@ -159,7 +130,12 @@ const SAF_PREVIEW_PATH_FRAGMENT = 'saf_preview.php';
 let safPreviewObserver: MutationObserver | null = null;
 let safPreviewExtractionCompleted = false;
 
-const isSafPreviewDocument = () => window.location.pathname.includes(SAF_PREVIEW_PATH_FRAGMENT);
+const isEnrollmentPortal = () => {
+    const host = window.location.hostname.toLowerCase();
+    return host.includes('oses') || host === 'localhost' || host === '127.0.0.1';
+};
+
+const isSafPreviewDocument = () => isEnrollmentPortal() && window.location.pathname.includes(SAF_PREVIEW_PATH_FRAGMENT);
 
 const stopSafPreviewObserver = () => {
     if (safPreviewObserver) {
@@ -169,37 +145,27 @@ const stopSafPreviewObserver = () => {
 };
 
 const tryProcessSafPreviewDocument = () => {
-    if (!isSafPreviewDocument() || safPreviewExtractionCompleted) {
-        return;
-    }
+    if (!isSafPreviewDocument() || safPreviewExtractionCompleted) return;
 
     const hasAssessmentTable = document.querySelector('.assessment_schedule tbody tr');
-    if (!hasAssessmentTable) {
-        return;
-    }
+    if (!hasAssessmentTable) return;
 
     chrome.storage.local.get(['autoSchedEnabled'], (result: StorageItems) => {
-        if (!result.autoSchedEnabled || safPreviewExtractionCompleted) {
-            return;
-        }
+        if (!result.autoSchedEnabled || safPreviewExtractionCompleted) return;
 
         safPreviewExtractionCompleted = true;
         stopSafPreviewObserver();
-        console.log("[AutoSched] SAF Preview context detected. Executing room extraction...");
+        beamLog("SAF Preview detected: Extracting room assignments", 'info');
         processSAFDocument(document);
     });
 };
 
 const startSafPreviewObserver = () => {
-    if (!isSafPreviewDocument() || safPreviewExtractionCompleted) {
-        return;
-    }
+    if (!isSafPreviewDocument() || safPreviewExtractionCompleted) return;
 
     tryProcessSafPreviewDocument();
 
-    if (safPreviewExtractionCompleted || safPreviewObserver) {
-        return;
-    }
+    if (safPreviewExtractionCompleted || safPreviewObserver) return;
 
     const observationTarget = document.documentElement || document;
     safPreviewObserver = new MutationObserver(() => {
@@ -217,6 +183,7 @@ chrome.storage.onChanged.addListener((changes: Record<string, { oldValue: unknow
         startSafPreviewObserver();
     }
 });
+
 // XML Schedule Parser Logic
 const processXMLToTargetJSON = (xmlString: string, prevBlocks: PlotterBlock[] = []) => {
     const parser = new DOMParser();
@@ -226,34 +193,25 @@ const processXMLToTargetJSON = (xmlString: string, prevBlocks: PlotterBlock[] = 
     const blocks: PlotterBlock[] = [];
     const preservedRoomIndex = buildPreservedRoomIndex(prevBlocks);
     const colorMap = new Map<string, string>();
-    let colorIndex = 0;
-
-    // Seed the color map with previously assigned colors to prevent shuffling
-    prevBlocks.forEach(b => {
-        // b.name is usually "CCS0001 - TITLE"
-        const baseName = b.name.split('-')[0].trim().replace(/L$/, '');
-        if (!colorMap.has(baseName)) {
-            colorMap.set(baseName, b.color);
-        }
-    });
-
     items.forEach((item) => {
         const getNodeText = (tag: string) => item.querySelector(tag)?.textContent?.trim() || "";
         const courseCode = getNodeText("course_enrolled");
 
         if (!courseCode) return;
 
-        // Auto-correct subject name if it exists in the catalog
         const catalogTitle = SUBJECT_CATALOG[courseCode];
         const courseName = catalogTitle ? `${courseCode} - ${catalogTitle}` : courseCode;
-
-        // Normalize the base code (e.g., CCS0015L -> CCS0015) to group siblings
         const baseCode = courseCode.replace(/L$/, '');
 
         let color = colorMap.get(baseCode);
         if (!color) {
-            color = TW_COLORS[colorIndex % TW_COLORS.length];
-            colorIndex++;
+            let hash = 0;
+            for (let i = 0; i < baseCode.length; i++) {
+                hash = ((hash << 5) - hash) + baseCode.charCodeAt(i);
+                hash |= 0; // Force 32-bit integer
+            }
+            const colorIndex = Math.abs(hash) % TW_COLORS.length;
+            color = TW_COLORS[colorIndex];
             colorMap.set(baseCode, color);
         }
 
@@ -291,51 +249,65 @@ const processXMLToTargetJSON = (xmlString: string, prevBlocks: PlotterBlock[] = 
         });
     });
 
-    const finalJSON = {
+    const finalJSON: ScheduleContainer = {
         id: "sched-live-autosync",
         name: "Auto Sched Live Sync",
+        source: "auto-plot",
         blocks: blocks
     };
 
-    // DOM Integrity Check
-    // Since XHR can sometimes be faster than DOM updates, we add a small delay
     setTimeout(() => {
         runValidationCheck(blocks);
     }, 1500);
 
     chrome.storage.local.set({ latestSchedule: finalJSON }, () => {
-        console.log("[AutoSched] Intercepted schedule updated in storage.", finalJSON);
+        beamLog(`Auto Plotter: Intercepted ${blocks.length} subjects from OSES`, 'success');
     });
 
     return finalJSON;
 };
 
-// SAF DOCUMENT PARSER LOGIC
+// SAF Document Parser Logic (Composite Key Strategy)
 const processSAFDocument = (doc: Document) => {
     const rows = doc.querySelectorAll('.assessment_schedule tbody tr');
-    const roomMap = new Map<string, string[]>();
+    const roomMap = new Map<string, string>();
 
     rows.forEach(row => {
         const cells = row.querySelectorAll('td');
-        // Valid SAF rows have 7 columns
-        if (cells.length >= 7) {
-            const courseCode = cells[0]?.textContent?.trim() || "";
-            const section = cells[2]?.textContent?.trim() || "";
-            const roomStr = cells[6]?.textContent?.trim() || "";
+        if (cells.length < 7) return;
 
-            // Ignore footers or empty rows
-            if (!courseCode || courseCode.includes('TOTAL UNITS')) return;
+        const courseCode = cells[0]?.textContent?.trim() || "";
+        const section = cells[2]?.textContent?.trim() || "";
 
-            const key = `${courseCode}-${section}`;
-            // Handle split rooms like "F706 / F1204"
-            const rooms = roomStr.split('/').map(r => r.trim());
-            roomMap.set(key, rooms);
-        }
+        if (!courseCode || courseCode.includes('TOTAL UNITS')) return;
+
+        const daysArr = cells[4]?.textContent?.trim().split('/') || [];
+        const timesArr = cells[5]?.textContent?.trim().split('/') || [];
+        const roomsArr = cells[6]?.textContent?.trim().split('/') || [];
+
+        daysArr.forEach((dayStr, idx) => {
+            const dayLabel = dayStr.trim();
+            const timeStr = timesArr[idx]?.trim() || timesArr[0]?.trim() || "";
+            const roomStr = roomsArr[idx]?.trim() || roomsArr[roomsArr.length - 1]?.trim() || DEFAULT_UNASSIGNED_ROOM;
+
+            if (!dayLabel || DAY_MAP[dayLabel] === undefined) return;
+
+            const [startRaw, endRaw] = timeStr.split('-');
+            
+            // Strip seconds (e.g., 13:00:00 -> 13:00) to match XHR meeting signature
+            const start = startRaw?.split(':').slice(0, 2).join(':') || "";
+            const end = endRaw?.split(':').slice(0, 2).join(':') || "";
+
+            const meetingSignature = createMeetingSignature(DAY_MAP[dayLabel], start, end);
+            const courseSectionKey = createCourseSectionKey(courseCode, section);
+            const exactKey = `${courseSectionKey}|${meetingSignature}`;
+
+            roomMap.set(exactKey, roomStr);
+        });
     });
 
-    console.log("[AutoSched] Extracted Room Map from SAF:", roomMap);
+    console.log("[AutoSched] Extracted Exact Room Signatures from SAF:", roomMap);
 
-    // Merge into existing storage
     chrome.storage.local.get(['latestSchedule'], (result: StorageItems) => {
         if (!result.latestSchedule) {
             console.warn("[AutoSched] No existing schedule found to merge rooms into.");
@@ -345,63 +317,54 @@ const processSAFDocument = (doc: Document) => {
         const schedule = result.latestSchedule;
         let isUpdated = false;
 
-        // Track room assignments to handle split schedules correctly sequentially
-        const roomUsageTracker = new Map<string, number>();
-
         schedule.blocks.forEach((block) => {
-            // Reconstruct the raw course code (e.g., "CCS0015L") to match the SAF map
             const rawCourseCode = block.name.split(' - ')[0].trim();
-            const key = `${rawCourseCode}-${block.section}`;
+            const courseSectionKey = createCourseSectionKey(rawCourseCode, block.section);
+            const meetingSignature = createMeetingSignature(block.day, block.start, block.end);
+            const exactKey = `${courseSectionKey}|${meetingSignature}`;
 
-            if (roomMap.has(key)) {
-                const availableRooms = roomMap.get(key)!;
-                let usageIndex = roomUsageTracker.get(key) || 0;
-
-                const assignedRoom = availableRooms[usageIndex] || availableRooms[availableRooms.length - 1] || "TBA";
-
+            if (roomMap.has(exactKey)) {
+                const assignedRoom = roomMap.get(exactKey)!;
                 if (block.room !== assignedRoom) {
                     block.room = assignedRoom;
                     isUpdated = true;
                 }
-
-                roomUsageTracker.set(key, usageIndex + 1);
             }
         });
 
         if (isUpdated) {
             chrome.storage.local.set({ latestSchedule: schedule }, () => {
-                console.log("[AutoSched] Room assignments merged successfully!", schedule);
+                beamLog("Auto Plotter: Merged room assignments from SAF Preview", 'success');
             });
         }
     });
 };
 
-// Relay listener
-// Check A: Are we inside the SAF Preview document right now?
+// Relay Listener
 if (isSafPreviewDocument()) {
     startSafPreviewObserver();
 }
 
-// Check B: We are in the main portal. Listen for the XML XHR Intercepts.
 window.addEventListener('message', (event) => {
     if (event.source === window && event.data.type === 'OSES_SCHEDULE_INTERCEPT') {
+        if (!isEnrollmentPortal()) return;
+
         const action = event.data.action || "unknown";
         const url = event.data.url || "unknown";
 
         console.log(`[AutoSched] Passive intercept triggered. URL: ${url}, Action: ${action}`);
 
-        // Prevent syncing 'schedule_open' which contains all available courses, not enrolled courses
         if (action === 'schedule_open') {
             console.log("[AutoSched] Ignoring 'schedule_open' (Available Courses list).");
             return;
         }
-
         chrome.storage.local.get(['latestSchedule', 'autoSchedEnabled'], (result: StorageItems) => {
             if (result.autoSchedEnabled) {
+                beamLog("OSES Data Intercepted: Processing schedule...", 'info');
                 const prevBlocks = result.latestSchedule?.blocks || [];
                 processXMLToTargetJSON(event.data.data, prevBlocks);
             } else {
-                console.log("[AutoSched] AutoSched is disabled. Intercept ignored.");
+                beamLog("Auto-Sync is disabled. Intercept ignored.", 'warn');
             }
         });
     }

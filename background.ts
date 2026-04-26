@@ -11,25 +11,30 @@ const PORTAL_URLS = [
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === 'GET_HEARTBEAT_DATA') {
-        // Step 1: Check if any Portal tab is open
+        // ... existing heartbeat logic ...
         chrome.tabs.query({ url: PORTAL_URLS }, (tabs) => {
             const isPortalOpen = tabs && tabs.length > 0;
-            
-            // Step 2: Check autoSchedEnabled from storage
             chrome.storage.local.get(['autoSchedEnabled'], (result) => {
                 const autoSchedEnabled = !!result.autoSchedEnabled;
-                
-                // Step 3: Send the combined status back to the content script
-                sendResponse({
-                    installed: true,
-                    autoSchedEnabled: autoSchedEnabled,
-                    isPortalOpen: isPortalOpen
-                });
+                sendResponse({ installed: true, autoSchedEnabled, isPortalOpen });
             });
         });
-        
-        // Return true to indicate we will send the response asynchronously
         return true;
+    }
+
+    if (request.action === 'BEAM_LOG' && request.payload) {
+        // Persist logs in storage so they survive popup closure
+        chrome.storage.local.get(['appLogs'], (result) => {
+            const logs = result.appLogs || [];
+            const newLog = {
+                ...request.payload,
+                timestamp: new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
+            };
+            
+            // Keep only the last 50 logs to prevent bloat
+            const updatedLogs = [newLog, ...logs].slice(0, 50);
+            chrome.storage.local.set({ appLogs: updatedLogs });
+        });
     }
 });
 

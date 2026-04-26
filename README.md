@@ -9,7 +9,7 @@ This extension is a companion tool for my [Web Tools](https://tools.kendavila.me
 
 ### Schedule Visualizer & Plotter
 - [x] Auto Plotting (FEU OSES) 
-- [ ] Extract from COR
+- [ ] Extract from SAF
 
 ### Pre-Requisite Tree
 - [ ] Extract Curriculum (Tree Parser)
