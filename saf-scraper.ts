@@ -80,6 +80,23 @@ const scrapeAssessmentTable = (): PlotterBlock[] => {
                 section,
                 color: assignedColor
             });
+            // Send the extracted data to the background/bridge
+            chrome.runtime.sendMessage({ 
+                action: 'SAF_EXTRACTED', 
+                payload: payload 
+            }, () => {
+                // Trigger the Hub's visual feedback
+                chrome.runtime.sendMessage({
+                    action: 'SHOW_BEAMING'
+                });
+                chrome.runtime.sendMessage({
+                    action: 'UPDATE_HUB_STATUS',
+                    title: 'Rooms Extracted!',
+                    subtitle: 'Beamed to Visualizer',
+                    state: 'success',
+                    icon: '✅'
+                });
+            });
         });
     });
 
@@ -112,6 +129,6 @@ chrome.runtime.onMessage.addListener((request: any, sender: any, sendResponse: a
 
         beamLog(`Successfully extracted ${blocks.length} blocks from SAF`, 'success');
         sendResponse({ success: true, payload: targetJSON });
+        return true; // Keep message channel open for the response to be sent
     }
-    return true; // Keep message channel open for async response
 });

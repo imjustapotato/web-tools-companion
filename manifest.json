@@ -68,8 +68,14 @@
                 "https://web-tools-teal.vercel.app/*"
             ],
             "js": [
-                "bridge.js"
+                "bridge.js",
+                "portal-guide.js"
             ],
+            "run_at": "document_start"
+        },
+        {
+            "matches": ["https://portal.feutech.edu.ph/*"],
+            "js": ["portal-guide.js"],
             "run_at": "document_idle"
         }
     ],

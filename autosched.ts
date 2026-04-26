@@ -361,6 +361,17 @@ window.addEventListener('message', (event) => {
         chrome.storage.local.get(['latestSchedule', 'autoSchedEnabled'], (result: StorageItems) => {
             if (result.autoSchedEnabled) {
                 beamLog("OSES Data Intercepted: Processing schedule...", 'info');
+                
+                // Trigger the Hub's visual feedback
+                chrome.runtime.sendMessage({ action: 'SHOW_BEAMING' });
+                chrome.runtime.sendMessage({
+                    action: 'UPDATE_HUB_STATUS',
+                    title: 'Live Sync Active',
+                    subtitle: 'Processing Enrollment...',
+                    state: 'active',
+                    icon: '📡'
+                });
+
                 const prevBlocks = result.latestSchedule?.blocks || [];
                 processXMLToTargetJSON(event.data.data, prevBlocks);
             } else {

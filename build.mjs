@@ -92,7 +92,9 @@ async function buildExtension() {
     { input: 'autosched.ts', output: 'autosched.js' },
     { input: 'autosched-main.ts', output: 'autosched-main.js' },
     { input: 'saf-scraper.ts', output: 'saf-scraper.js' },
+    { input: 'curriculum-scraper.ts', output: 'curriculum-scraper.js' },
     { input: 'bridge.ts', output: 'bridge.js' },
+    { input: 'portal-guide.ts', output: 'portal-guide.js' },
     { input: 'background.ts', output: 'background.js' }
   ];
 

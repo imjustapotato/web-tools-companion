@@ -1,6 +1,3 @@
-/* Modernized Color Palette & Theme Variables
-  Adopts a premium "Obsidian" dark mode with vibrant Emerald/Blue accents.
-*/
 :root {
     --bg-base: #020617; /* Slate 950 */
     --bg-surface: #0f172a; /* Slate 900 */
@@ -37,12 +34,24 @@
 }
 
 body {
-    width: 380px; /* Slightly wider for better breathing room */
-    font-family: system-ui, -apple-system, sans-serif;
-    background-color: var(--bg-base);
-    color: var(--text-primary);
-    padding: 1.25rem;
+    width: 380px;
+    height: 560px;
+    margin: 0;
+    font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: #020617;
+    color: #f8fafc;
+    overflow-x: hidden;
+    overflow-y: auto;
+    padding: 1rem 1.25rem;
     -webkit-font-smoothing: antialiased;
+    
+    /* Hide scrollbar for Firefox and IE/Edge */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+body::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
 }
 
 /* Utility */
@@ -106,7 +115,8 @@ body {
     font-weight: 600;
     font-size: 0.9rem;
     cursor: pointer;
-    transition: var(--transition-fast);
+    /* CSS only handles shadows and filters now, GSAP handles scale transforms */
+    transition: box-shadow var(--transition-fast), filter var(--transition-fast);
     box-shadow: 0 4px 15px rgba(59, 130, 246, 0.3);
     display: flex;
     align-items: center;
@@ -115,13 +125,8 @@ body {
 }
 
 .primary-action-btn:hover {
-    transform: translateY(-1px);
     box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
     filter: brightness(1.1);
-}
-
-.primary-action-btn:active {
-    transform: translateY(1px);
 }
 
 /* Tool Groups */
@@ -230,7 +235,7 @@ details[open] .summary-chevron {
     font-size: 0.85rem;
     font-weight: 500;
     border: 1px solid transparent;
-    transition: var(--transition-fast);
+    transition: background-color var(--transition-fast);
     cursor: pointer;
     background: transparent;
     color: var(--text-primary);
@@ -246,8 +251,27 @@ details[open] .summary-chevron {
 }
 
 .active-btn.is-listening {
-    background-color: var(--success-bg);
-    border-color: rgba(16, 185, 129, 0.3);
+    background-color: rgba(59, 130, 246, 0.1);
+    border-color: rgba(59, 130, 246, 0.3);
+    position: relative;
+    overflow: hidden;
+}
+
+.active-btn.is-listening::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(59, 130, 246, 0.15),
+        transparent
+    );
+    animation: wipe 3s infinite cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
 }
 
 .tool-btn-left {
@@ -263,12 +287,12 @@ details[open] .summary-chevron {
 }
 
 .active-btn.is-listening .tool-btn-icon.zap-icon {
-    color: var(--success-light);
-    filter: drop-shadow(0 0 8px rgba(52, 211, 153, 0.8));
+    color: var(--accent-primary);
+    filter: drop-shadow(0 0 8px rgba(59, 130, 246, 0.6));
 }
 
 .active-btn.is-listening .tool-btn-text {
-    color: var(--success-light);
+    color: var(--accent-primary);
 }
 
 .auto-awesome-icon {
@@ -306,6 +330,11 @@ details[open] .summary-chevron {
     100% { transform: rotate(360deg); }
 }
 
+@keyframes wipe {
+    0% { left: -100%; }
+    40%, 100% { left: 100%; }
+}
+
 /* Icon Buttons (Reset) */
 .icon-btn {
     display: flex;
@@ -318,7 +347,8 @@ details[open] .summary-chevron {
     background-color: var(--bg-surface);
     color: var(--text-secondary);
     cursor: pointer;
-    transition: var(--transition-fast);
+    /* CSS handles background and color, GSAP handles physical transform */
+    transition: background-color var(--transition-fast), color var(--transition-fast);
 }
 
 .icon-btn:hover {
@@ -326,32 +356,56 @@ details[open] .summary-chevron {
     color: var(--text-primary);
 }
 
-.icon-btn:active {
-    transform: scale(0.95);
-}
-
-/* Interactive Tooltip UI */
+/* Status Box (Inline below the button) */
 .mouse-tooltip {
-    position: fixed;
-    pointer-events: none;
-    background-color: rgba(2, 6, 23, 0.95);
-    color: var(--text-primary);
-    padding: 0.6rem 0.8rem;
+    background-color: rgba(59, 130, 246, 0.05);
+    color: var(--text-secondary);
+    padding: 0.75rem;
     border-radius: var(--radius-sm);
-    border: 1px solid rgba(16, 185, 129, 0.3);
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
-    font-size: 0.75rem;
-    font-weight: 500;
-    z-index: 9999;
-    opacity: 0;
-    transition: opacity var(--transition-fast);
-    width: 240px;
+    border: 1px solid rgba(59, 130, 246, 0.2);
+    font-size: 0.7rem;
     line-height: 1.5;
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
     display: none;
-    backdrop-filter: blur(8px);
+    opacity: 0;
+    transition: opacity 0.2s ease;
 }
 
-.mouse-tooltip.visible {
+.tooltip-clear-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.muted-text {
+    color: var(--text-muted);
+}
+
+.text-link-btn {
+    background: none;
+    border: none;
+    color: var(--accent-primary);
+    padding: 0;
+    font-size: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    transition: color var(--transition-fast);
+}
+
+.text-link-btn:hover {
+    color: var(--text-primary);
+}
+
+/* Show when the parent button is in listening mode OR when forced visible via JS */
+.tool-btn.is-listening + .mouse-tooltip,
+.mouse-tooltip.force-visible {
+    display: block;
     opacity: 1;
 }
 
@@ -360,9 +414,7 @@ details[open] .summary-chevron {
     transition: max-height var(--transition-smooth), opacity var(--transition-fast);
 }
 
-/* ==========================================
-   Activity Console Styles
-   ========================================== */
+/* Activity Console Styles */
 .console-window {
     background-color: #000000;
     border-radius: var(--radius-sm);
@@ -416,4 +468,91 @@ details[open] .summary-chevron {
 .console-action-btn:hover {
     color: var(--text-primary);
     background-color: var(--bg-surface);
+}
+
+/* Custom Modal Overlay */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(2, 6, 23, 0.85);
+    backdrop-filter: blur(8px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    padding: 2rem;
+}
+
+.modal-card {
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    width: 100%;
+    max-width: 320px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.modal-icon {
+    color: #ef4444; /* Red 500 */
+    font-size: 1.5rem;
+}
+
+.modal-title {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+.modal-message {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    line-height: 1.6;
+    margin-bottom: 1.5rem;
+}
+
+.modal-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+
+.modal-btn {
+    padding: 0.75rem;
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    border: none;
+    outline: none;
+}
+
+.btn-secondary {
+    background-color: var(--bg-surface-elevated);
+    border: 1px solid var(--border-subtle);
+    color: var(--text-primary);
+}
+
+.btn-secondary:hover {
+    background-color: var(--bg-surface-hover);
+}
+
+.btn-danger {
+    background-color: #ef4444;
+    color: white;
+}
+
+.btn-danger:hover {
+    background-color: #dc2626;
 }
