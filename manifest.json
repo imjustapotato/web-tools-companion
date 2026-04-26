@@ -46,12 +46,12 @@
         },
         {
             "matches": [
-                "*://oses.feutech.edu.ph/*",
                 "*://solar.feutech.edu.ph/*",
-                "*://oses.feualabang.edu.ph/*",
+                "*://oses.feutech.edu.ph/*",
                 "*://solar.feualabang.edu.ph/*",
-                "*://oses.feudiliman.edu.ph/*",
+                "*://oses.feualabang.edu.ph/*",
                 "*://solar.feudiliman.edu.ph/*",
+                "*://oses.feudiliman.edu.ph/*",
                 "*://localhost/*"
             ],
             "js": [
@@ -63,20 +63,25 @@
         },
         {
             "matches": [
+                "*://solar.feutech.edu.ph/*",
+                "*://solar.feualabang.edu.ph/*",
+                "*://solar.feudiliman.edu.ph/*",
+                "*://localhost/*"
+            ],
+            "js": ["portal-guide.js"],
+            "all_frames": false,
+            "run_at": "document_idle"
+        },
+        {
+            "matches": [
                 "http://localhost:*/*",
                 "https://tools.kendavila.me/*",
                 "https://web-tools-teal.vercel.app/*"
             ],
             "js": [
-                "bridge.js",
-                "portal-guide.js"
+                "bridge.js"
             ],
             "run_at": "document_start"
-        },
-        {
-            "matches": ["https://portal.feutech.edu.ph/*"],
-            "js": ["portal-guide.js"],
-            "run_at": "document_idle"
         }
     ],
     "web_accessible_resources": [

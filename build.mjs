@@ -94,7 +94,7 @@ async function buildExtension() {
     { input: 'saf-scraper.ts', output: 'saf-scraper.js' },
     { input: 'curriculum-scraper.ts', output: 'curriculum-scraper.js' },
     { input: 'bridge.ts', output: 'bridge.js' },
-    { input: 'portal-guide.ts', output: 'portal-guide.js' },
+    { input: 'portal-guide/portal-guide.ts', output: 'portal-guide.js' },
     { input: 'background.ts', output: 'background.js' }
   ];
 

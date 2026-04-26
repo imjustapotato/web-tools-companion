@@ -1,17 +1,17 @@
 // Background service worker.
 
 const PORTAL_URLS = [
-    '*://oses.feutech.edu.ph/*',
-    '*://solar.feutech.edu.ph/*',
-    '*://oses.feualabang.edu.ph/*',
-    '*://solar.feualabang.edu.ph/*',
-    '*://oses.feudiliman.edu.ph/*',
-    '*://solar.feudiliman.edu.ph/*'
+    "*://solar.feutech.edu.ph/*",
+    "*://oses.feutech.edu.ph/*",
+    "*://solar.feualabang.edu.ph/*",
+    "*://oses.feualabang.edu.ph/*",
+    "*://solar.feudiliman.edu.ph/*",
+    "*://oses.feudiliman.edu.ph/*",
+    "*://localhost/*"
 ];
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === 'GET_HEARTBEAT_DATA') {
-        // ... existing heartbeat logic ...
         chrome.tabs.query({ url: PORTAL_URLS }, (tabs) => {
             const isPortalOpen = tabs && tabs.length > 0;
             chrome.storage.local.get(['autoSchedEnabled'], (result) => {
@@ -23,18 +23,25 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
 
     if (request.action === 'BEAM_LOG' && request.payload) {
-        // Persist logs in storage so they survive popup closure
+        // 1. Persist logs for the Activity Log
         chrome.storage.local.get(['appLogs'], (result) => {
             const logs = result.appLogs || [];
             const newLog = {
                 ...request.payload,
                 timestamp: new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
             };
-            
-            // Keep only the last 50 logs to prevent bloat
             const updatedLogs = [newLog, ...logs].slice(0, 50);
             chrome.storage.local.set({ appLogs: updatedLogs });
         });
+
+        // 2. Relay log to the Companion Hub if the sender is a portal tab
+        if (sender.tab && sender.tab.id) {
+            chrome.tabs.sendMessage(sender.tab.id, {
+                action: 'SHOW_LOG',
+                message: request.payload.message,
+                logType: request.payload.level
+            }).catch(() => {});
+        }
     }
 });
 
