@@ -155,7 +155,7 @@ const tryProcessSafPreviewDocument = () => {
 
         safPreviewExtractionCompleted = true;
         stopSafPreviewObserver();
-        beamLog("SAF Preview detected: Extracting room assignments", 'info');
+        beamLog("[AutoSched] SAF Preview: Syncing room assignments", 'info');
         processSAFDocument(document);
     });
 };
@@ -184,6 +184,9 @@ chrome.storage.onChanged.addListener((changes: Record<string, { oldValue: unknow
     }
 });
 
+// Global state for change tracking
+let lastEnrolledCodes: string[] = [];
+
 // XML Schedule Parser Logic
 const processXMLToTargetJSON = (xmlString: string, prevBlocks: PlotterBlock[] = []) => {
     const parser = new DOMParser();
@@ -191,13 +194,15 @@ const processXMLToTargetJSON = (xmlString: string, prevBlocks: PlotterBlock[] = 
     const items = xmlDoc.querySelectorAll("Items");
 
     const blocks: PlotterBlock[] = [];
-    const preservedRoomIndex = buildPreservedRoomIndex(prevBlocks);
+    const currentCodes: string[] = [];
     const colorMap = new Map<string, string>();
+
     items.forEach((item) => {
         const getNodeText = (tag: string) => item.querySelector(tag)?.textContent?.trim() || "";
         const courseCode = getNodeText("course_enrolled");
 
         if (!courseCode) return;
+        currentCodes.push(courseCode);
 
         const catalogTitle = SUBJECT_CATALOG[courseCode];
         const courseName = catalogTitle ? `${courseCode} - ${catalogTitle}` : courseCode;
@@ -208,7 +213,7 @@ const processXMLToTargetJSON = (xmlString: string, prevBlocks: PlotterBlock[] = 
             let hash = 0;
             for (let i = 0; i < baseCode.length; i++) {
                 hash = ((hash << 5) - hash) + baseCode.charCodeAt(i);
-                hash |= 0; // Force 32-bit integer
+                hash |= 0;
             }
             const colorIndex = Math.abs(hash) % TW_COLORS.length;
             color = TW_COLORS[colorIndex];
@@ -229,7 +234,7 @@ const processXMLToTargetJSON = (xmlString: string, prevBlocks: PlotterBlock[] = 
 
             const [start, end] = timeStr.split('-').map(t => t.trim());
             const preservedRoomLabel = getPreservedRoomLabel(
-                preservedRoomIndex,
+                buildPreservedRoomIndex(prevBlocks),
                 courseCode,
                 section,
                 DAY_MAP[dayStr],
@@ -256,12 +261,21 @@ const processXMLToTargetJSON = (xmlString: string, prevBlocks: PlotterBlock[] = 
         blocks: blocks
     };
 
+    // --- Subject Tracking Logic ---
+    const added = currentCodes.filter(c => !lastEnrolledCodes.includes(c));
+    const dropped = lastEnrolledCodes.filter(c => !currentCodes.includes(c));
+    lastEnrolledCodes = [...currentCodes];
+
+    let changeMsg = `[AutoSched] Intercepted ${blocks.length} subjects.`;
+    if (added.length > 0) changeMsg = `[AutoSched] Added ${added.join(', ')}`;
+    else if (dropped.length > 0) changeMsg = `[AutoSched] Dropped ${dropped.join(', ')}`;
+
     setTimeout(() => {
         runValidationCheck(blocks);
     }, 1500);
 
     chrome.storage.local.set({ latestSchedule: finalJSON }, () => {
-        beamLog(`Auto Plotter: Intercepted ${blocks.length} subjects from OSES`, 'success');
+        beamLog(changeMsg, 'success');
     });
 
     return finalJSON;
@@ -306,13 +320,8 @@ const processSAFDocument = (doc: Document) => {
         });
     });
 
-    console.log("[AutoSched] Extracted Exact Room Signatures from SAF:", roomMap);
-
     chrome.storage.local.get(['latestSchedule'], (result: StorageItems) => {
-        if (!result.latestSchedule) {
-            console.warn("[AutoSched] No existing schedule found to merge rooms into.");
-            return;
-        }
+        if (!result.latestSchedule) return;
 
         const schedule = result.latestSchedule;
         let isUpdated = false;
@@ -334,7 +343,16 @@ const processSAFDocument = (doc: Document) => {
 
         if (isUpdated) {
             chrome.storage.local.set({ latestSchedule: schedule }, () => {
-                beamLog("Auto Plotter: Merged room assignments from SAF Preview", 'success');
+                beamLog("[AutoSched] Rooms Synced from SAF Preview", 'success');
+                
+                window.dispatchEvent(new CustomEvent('WEB_TOOLS_HUB_ACTION', {
+                    detail: {
+                        action: 'UPDATE_HUB_STATUS',
+                        title: 'Rooms Synced',
+                        subtitle: 'Merged room data into sync.',
+                        state: 'success'
+                    }
+                }));
             });
         }
     });
@@ -350,32 +368,33 @@ window.addEventListener('message', (event) => {
         if (!isEnrollmentPortal()) return;
 
         const action = event.data.action || "unknown";
-        const url = event.data.url || "unknown";
+        if (action === 'schedule_open') return;
 
-        console.log(`[AutoSched] Passive intercept triggered. URL: ${url}, Action: ${action}`);
-
-        if (action === 'schedule_open') {
-            console.log("[AutoSched] Ignoring 'schedule_open' (Available Courses list).");
-            return;
-        }
         chrome.storage.local.get(['latestSchedule', 'autoSchedEnabled'], (result: StorageItems) => {
             if (result.autoSchedEnabled) {
-                beamLog("OSES Data Intercepted: Processing schedule...", 'info');
+                beamLog("[AutoSched] Intercepting Enrollment Data...", 'info');
                 
-                // Trigger the Hub's visual feedback
-                chrome.runtime.sendMessage({ action: 'SHOW_BEAMING' });
-                chrome.runtime.sendMessage({
-                    action: 'UPDATE_HUB_STATUS',
-                    title: 'Live Sync Active',
-                    subtitle: 'Processing Enrollment...',
-                    state: 'active',
-                    icon: '📡'
-                });
+                // Only signal Hub if not already in an active burst
+                const now = Date.now();
+                if (now - ((window as any)._lastHubSignal || 0) > 2000) {
+                    (window as any)._lastHubSignal = now;
+                    
+                    window.dispatchEvent(new CustomEvent('WEB_TOOLS_HUB_ACTION', {
+                        detail: { action: 'SHOW_BEAMING' }
+                    }));
+
+                    window.dispatchEvent(new CustomEvent('WEB_TOOLS_HUB_ACTION', {
+                        detail: {
+                            action: 'UPDATE_HUB_STATUS',
+                            title: 'Auto-Sync Active',
+                            subtitle: 'Intercepting Enrollment Data...',
+                            state: 'active'
+                        }
+                    }));
+                }
 
                 const prevBlocks = result.latestSchedule?.blocks || [];
                 processXMLToTargetJSON(event.data.data, prevBlocks);
-            } else {
-                beamLog("Auto-Sync is disabled. Intercept ignored.", 'warn');
             }
         });
     }

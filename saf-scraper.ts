@@ -30,7 +30,6 @@ const scrapeAssessmentTable = (): PlotterBlock[] => {
     const blocks: PlotterBlock[] = [];
     
     const colorMap = new Map<string, string>();
-    let colorIndex = 0;
 
     rows.forEach(row => {
         const cells = row.querySelectorAll('td');
@@ -40,10 +39,8 @@ const scrapeAssessmentTable = (): PlotterBlock[] => {
         const courseTitle = cells[1]?.textContent?.trim() || "";
         const section = cells[2]?.textContent?.trim() || "";
 
-        // Skip footer rows or empty boundaries
         if (!courseCode || courseCode.includes('TOTAL UNITS')) return;
 
-        // Ensure Lecture and Lab keep the same color visually
         const baseCode = courseCode.replace(/L$/, '');
         let assignedColor = colorMap.get(baseCode);
         
@@ -80,23 +77,6 @@ const scrapeAssessmentTable = (): PlotterBlock[] => {
                 section,
                 color: assignedColor
             });
-            // Send the extracted data to the background/bridge
-            chrome.runtime.sendMessage({ 
-                action: 'SAF_EXTRACTED', 
-                payload: payload 
-            }, () => {
-                // Trigger the Hub's visual feedback
-                chrome.runtime.sendMessage({
-                    action: 'SHOW_BEAMING'
-                });
-                chrome.runtime.sendMessage({
-                    action: 'UPDATE_HUB_STATUS',
-                    title: 'Rooms Extracted!',
-                    subtitle: 'Beamed to Visualizer',
-                    state: 'success',
-                    icon: '✅'
-                });
-            });
         });
     });
 
@@ -127,7 +107,18 @@ chrome.runtime.onMessage.addListener((request: any, sender: any, sendResponse: a
             meta: { defaultColor: "bg-sky-600" }
         };
 
-        beamLog(`Successfully extracted ${blocks.length} blocks from SAF`, 'success');
+        beamLog(`[SAF] Schedule Extracted (${blocks.length} subjects)`, 'success');
+        
+        // Trigger Hub feedback
+        window.dispatchEvent(new CustomEvent('WEB_TOOLS_HUB_ACTION', {
+            detail: {
+                action: 'UPDATE_HUB_STATUS',
+                title: 'Schedule Extracted',
+                subtitle: `${blocks.length} subjects found on SAF`,
+                state: 'success'
+            }
+        }));
+
         sendResponse({ success: true, payload: targetJSON });
         return true; // Keep message channel open for the response to be sent
     }

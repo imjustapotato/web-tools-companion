@@ -7,11 +7,21 @@ export type LogLevel = 'info' | 'warn' | 'error' | 'success';
  */
 export const beamLog = (message: string, level: LogLevel = 'info') => {
     try {
+        // 1. External Broadcast (Background/Popup)
         chrome.runtime.sendMessage({
             action: 'BEAM_LOG',
             payload: { message, level }
         });
+
+        // 2. Local Broadcast (Shadow DOM Hub on same page)
+        window.dispatchEvent(new CustomEvent('WEB_TOOLS_HUB_ACTION', {
+            detail: {
+                action: 'SHOW_LOG',
+                message: message,
+                logType: level
+            }
+        }));
     } catch (e) {
-        // Silently ignore if the extension context is invalidated or popup is closed
+        // Silently ignore if the extension context is invalidated
     }
 };

@@ -36,11 +36,13 @@ sequenceDiagram
     Storage-->>ScriptISO: Return State
     
     alt is autoSchedEnabled
-        ScriptISO->>ScriptISO: Seed Color Map from latestSchedule
+        ScriptISO->>ScriptISO: Build Preserved Room Index (from latestSchedule)
         ScriptISO->>ScriptISO: Parse XML to JSON
         ScriptISO->>ScriptISO: Correct Names (Subject Catalog)
-        ScriptISO->>ScriptISO: Group Siblings (Lec/Lab) & Apply Colors
+        ScriptISO->>ScriptISO: Merge Rooms (Preservation Logic)
+        ScriptISO->>ScriptISO: Track Added/Dropped Subjects
         ScriptISO->>Storage: Set latestSchedule (Updated)
+        ScriptISO->>OSES: Dispatch HUB_ACTION (Auto-Sync Active)
     end
 
     Note over Bridge, WebApp: Handshake & Data Input
@@ -57,13 +59,13 @@ sequenceDiagram
     OSES->>ScriptMain: processData.php / loadData.php
     ScriptMain->>window: postMessage(OSES_SCHEDULE_INTERCEPT)
     window-->>ScriptISO: Receive Intercept
-    ScriptISO->>Storage: Update storage & notify Bridge
+    ScriptISO->>ScriptISO: Update Storage & Notify Hub
     Bridge->>WebApp: Push Real-time Update
 ```
 
 ## Room Assignment Flow (SAF Preview)
 
-The extension also supports room assignment extraction from the SAF Preview page. But `saf_preview.php` isn't intercepted as XHR therefore Room Assingment cannot be automated, it relies on the user to click the **Preview SAF** button inside OSES, the extension relies on DOM observation to extract room data directly from the rendered table. While Smartly Compare the extracted data `Course Code + Section -> Room Assignment` with the existing schedule in `chrome.storage.local` and merges any new room assignments without overwriting unchanged data.
+The extension also supports room assignment extraction from the SAF Preview page. But `saf_preview.php` isn't intercepted as XHR therefore Room Assignment cannot be automated, it relies on the user to click the **Preview SAF** button inside OSES, the extension relies on **MutationObserver** to detect the rendered table.
 
 **Sequence:**
 
@@ -80,11 +82,12 @@ sequenceDiagram
  
      User->>Portal: Open SAF Preview
      Portal->>SAF: Load saf_preview.php (iframe)
-     SAF->>ScriptISO: Injected at document_start
-     ScriptISO->>ScriptISO: Wait for .assessment_schedule table
-     alt Table appears & AutoSched enabled
-          ScriptISO->>ScriptISO: Parse room assignments
+     SAF->>ScriptISO: MutationObserver starts watching DOM
+     
+     alt Table .assessment_schedule appears
+          ScriptISO->>ScriptISO: Parse rooms using Composite Key (Signature + Course)
           ScriptISO->>Storage: Merge rooms into latestSchedule
+          ScriptISO->>SAF: Dispatch HUB_ACTION (Rooms Synced)
           Storage-->>Bridge: Notify update
           Bridge->>WebApp: Push Real-time Update
           WebApp->>WebApp: Render updated rooms
@@ -97,13 +100,14 @@ sequenceDiagram
 Injected into the **MAIN** world at `document_start`. It modifies the browser's `XMLHttpRequest` prototype to catch XML payloads before the page's own scripts can finish processing them.
 
 ### 2. The Processor (`autosched.ts`)
-Resides in the **ISOLATED** world. It performs the heavy lifting:
+Resides in the **ISOLATED** world and handles the heavy lifting:
 - **XML to JSON Translation:** Maps complex university XML nodes to a clean JSON schema.
-- **Color Persistence:** Uses previous schedule data to ensure that adding a new subject doesn't reshuffle the colors of existing ones.
-- **Sibling Logic:** Automatically detects Lecture/Lab pairs (stripping the trailing 'L') to ensure they share a consistent visual identity.
+- **Room Preservation:** Since XHR payloads often lack room data, the processor builds an index of previously known rooms and merges them into the new schedule based on meeting signatures.
+- **Change Tracking:** Specifically identifies "Added" or "Dropped" subjects to provide informative logs.
+- **Hub Integration:** Dispatches custom events to the **Portal Hub** (UI) to show "Beaming" animations and status updates.
 
 ### 3. The Bridge (`bridge.ts`)
-Acts as the secure communication tunnel between the Extension's storage and the Web Tool's iframe/window, ensuring data is only pushed when the user has explicitly enabled the feature.
+Acts as the secure communication tunnel between the Extension's storage and the Web Tool's iframe/window.
 
 ### 4. The Visualizer
 The final destination. It receives the translated JSON and renders the schedule, allowing for further manual edits and PNG exports.

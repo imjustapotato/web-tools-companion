@@ -20,6 +20,7 @@ This extension is a companion tool for my [Web Tools](https://tools.kendavila.me
 
 # Documentations
 - [Auto Plotter Flow](autoflow.md) - The synchronization architecture between the Web Tools Companion Extension, the FEU Tech School Portal (OSES), and the Schedule Visualizer (Web Tool).
+- [Manual Extraction Flow](extractflow.md) - Documentation for the manual extraction of SAF schedules and Program Curriculum data.
 
 # Disclaimer
 This extension is a personal project hobby that I developed for many, some functionalities are strictly for FEU students, and some are for the general public. I am not affiliated with FEU in any way, and this extension is not endorsed by FEU. The Extension aims to fix some nuance with our School Portal, and provide a better experience for my fellow students. The aforementioned features that are for FEU are Schedule Plotter & Visualizer, and Pre-Requisite Mapping, these functionalities wont work for any other school, unless requested.

@@ -1,6 +1,5 @@
 import { build } from 'vite';
 import fs from 'fs';
-import path from 'fs'; // Use path below
 import nodePath from 'path';
 import archiver from 'archiver';
 
@@ -116,8 +115,43 @@ async function buildExtension() {
     });
   }
 
-  // Copy extension assets.
-  fs.copyFileSync('manifest.json', nodePath.resolve(outDir, 'manifest.json'));
+  // Copy extension assets with production sanitization
+  if (isPackage) {
+    const manifest = JSON.parse(fs.readFileSync('manifest.json', 'utf8'));
+    
+    // Helper to remove localhost from match arrays
+    const sanitizeMatches = (matches) => {
+        if (!Array.isArray(matches)) return matches;
+        return matches.filter(match => !match.includes('localhost'));
+    };
+
+    // Sanitize Host Permissions
+    if (manifest.host_permissions) {
+        manifest.host_permissions = sanitizeMatches(manifest.host_permissions);
+    }
+
+    // Sanitize Content Scripts
+    if (manifest.content_scripts) {
+        manifest.content_scripts.forEach(script => {
+            script.matches = sanitizeMatches(script.matches);
+        });
+        // Remove empty content script entries if localhost was the only match
+        manifest.content_scripts = manifest.content_scripts.filter(script => script.matches.length > 0);
+    }
+
+    // Sanitize Web Accessible Resources
+    if (manifest.web_accessible_resources) {
+        manifest.web_accessible_resources.forEach(res => {
+            res.matches = sanitizeMatches(res.matches);
+        });
+    }
+
+    fs.writeFileSync(nodePath.resolve(outDir, 'manifest.json'), JSON.stringify(manifest, null, 2));
+    console.log(`[Build] manifest.json sanitized (localhost removed) for production.`);
+  } else {
+    fs.copyFileSync('manifest.json', nodePath.resolve(outDir, 'manifest.json'));
+  }
+
   fs.copyFileSync('popup.css', nodePath.resolve(outDir, 'popup.css'));
   fs.copyFileSync('src/assets/logo128.png', nodePath.resolve(outDir, 'logo128.png'));
   console.log(`[Build] Static assets copied to ${outDir}/`);
