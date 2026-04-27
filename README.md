@@ -35,13 +35,40 @@ As the Web-Tools grows with new features, I will do my best in integrating the e
 # Limitations
 The extension currently only has an array of **CST subjects**, and their corresponding Course Code. Subject Name Will be missing if you have subjects that are missing from the CST Catalog, manual editing will be needed, but If you wish to help me expand the catalog, you can reach out to me with the Mermaid Code or HTML/MHTML using Extract Curriculum (Mapping) feature or manually Right Clicking the Portal while Program Curriculum is open, Save Page As then Save as either HRML or MHTML, and I will add it to the catalog, and credit you in the changelog.
 
-### Extracting Curriculum Manually
-Click Program Curriculum in the Portal, then Right Click, Save Page As, and save as HTML or MHTML, then send it to me via email, or open a PR with the file in the repo.
-
-![Click Program Curriculum](src/screenshots/step1.png)
-
-Upon Saving, send the file on this pcloud link: [Submit Curriculum Data](https://u.pcloud.com/#/puplink?code=AhnXZanYSq5XR9pXESHhN7vsWg4Twlkgy).
-Use the course as the name followed by your name for the credits, for example: "BSCS Curriculum - Juan Dela Cruz.html"
-
 # Screenshots
-**To be Added Soon.**
+
+### Extension Interface
+The main popup provides a quick overview of the connection status and toggleable features.
+
+| Popup Home | Settings & Logging |
+|:---:|:---:|
+| ![Popup Home](src/screenshots/popup.png) | ![Settings & Logging](src/screenshots/popup2.png) |
+
+---
+
+### Companion Hub (Dynamic Island)
+Injected directly into the portal, the hub provides real-time feedback and data "beaming" animations.
+
+| Hub States | Feedback & Toasts |
+|:---:|:---:|
+| ![Hub Visuals](src/screenshots/hub-right.png) | ![Feedback Toast](src/screenshots/hub-feedback-toast.png) |
+
+---
+
+### Guidance & Rewards
+The snarky guidance system helps you find the right page, and rewards you for being a "good human" once you follow instructions.
+
+| Guidance (Wrong Page) | Reward System |
+|:---:|:---:|
+| ![Wrong Page Hint](src/screenshots/wrong-page.png) | ![Reward Celebration](src/screenshots/reward-for-being-a-good-human.png) |
+
+---
+
+### Auto-Sync Status
+Visual indicators when the extension is actively monitoring and syncing your schedule from OSES.
+
+| Auto-Sync Left | Auto-Sync Right |
+|:---:|:---:|
+| ![Auto-Sync Indicator](src/screenshots/auto-left.png) | ![Auto-Sync Active](src/screenshots/auto-right.png) |
+
+
