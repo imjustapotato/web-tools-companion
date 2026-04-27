@@ -17,11 +17,15 @@ export interface HubConfig {
     position: 'bottom-left' | 'bottom-right' | 'top-left' | 'top-right';
     showParticle: boolean;
     showHub: boolean;
+    showGuide?: boolean;
+    autoPosition?: boolean;
+    preferredVertical?: 'top' | 'bottom';
 }
 
 export class CompanionHub {
     public shadowRoot: ShadowRoot;
     private config: HubConfig;
+    private activePosition: 'bottom-left' | 'bottom-right' | 'top-left' | 'top-right' = 'bottom-left';
     
     private readonly ICONS = {
         idle: `<div class="sentry-dot"></div>`,
@@ -106,24 +110,37 @@ export class CompanionHub {
             if (this.isExpanded) this.minimize();
             else this.expand();
         });
+
+        window.addEventListener('resize', () => {
+            if (this.config.autoPosition) {
+                this.updateConfig(this.config);
+            }
+        });
     }
 
     public updateConfig(newConfig: HubConfig) {
         this.config = newConfig;
         
-        const isTop = this.config.position.includes('top');
-        const isRight = this.config.position.includes('right');
+        this.activePosition = this.config.position;
+        if (this.config.autoPosition) {
+            const vertical = this.config.preferredVertical || 'bottom';
+            const horizontal = window.innerWidth <= 1600 ? 'right' : 'left';
+            this.activePosition = `${vertical}-${horizontal}` as any;
+        }
+
+        const isTop = this.activePosition.includes('top');
+        const isRight = this.activePosition.includes('right');
 
         this.container.style.top = isTop ? '24px' : 'auto';
         this.container.style.bottom = !isTop ? '24px' : 'auto';
         this.container.style.left = !isRight ? '24px' : 'auto';
         this.container.style.right = isRight ? '24px' : 'auto';
         
-        // Pin the dot to the outer edge
+        // Anchor the sentry dot to the screen-facing edge of the pill
         this.container.style.alignItems = isRight ? 'flex-end' : 'flex-start';
         this.statusPill.style.flexDirection = isRight ? 'row-reverse' : 'row';
         
-        // Adjust text margins based on direction
+        // Dynamic margin so text doesn't collide with the dot after flip
         this.textWrapper.style.marginRight = (isRight && this.isExpanded) ? '10px' : '0';
         this.textWrapper.style.marginLeft = (!isRight && this.isExpanded) ? '10px' : '0';
     }
@@ -154,29 +171,29 @@ export class CompanionHub {
 
         this.particleLayer.appendChild(particle);
 
-        // Viewport-relative coordinates (Zero-drift)
+        // Viewport-relative coords prevent drift when the hub repositions
         const dotRect = this.iconWrapper.getBoundingClientRect();
         const startX = dotRect.left + dotRect.width / 2;
         const startY = dotRect.top + dotRect.height / 2;
 
-        const isBottom = this.config.position.includes('bottom');
+        const isBottom = this.activePosition.includes('bottom');
         const screenCenterX = window.innerWidth / 2;
         
-        // Target Point: Offscreen vertically
+        // Send particles offscreen in the direction opposite the hub
         const yDirection = isBottom ? -1 : 1;
         const endY = isBottom ? -100 : window.innerHeight + 100;
         const spreadX = screenCenterX + (Math.random() - 0.5) * 400;
 
         const tl = gsap.timeline({ onComplete: () => particle.remove() });
 
-        // Randomized Center Point to avoid collisions
+        // Randomized center avoids particle path overlap
         const centerX = screenCenterX + (Math.random() - 0.5) * 200;
 
         if (isOutbound) {
             gsap.set(particle, { x: startX, y: startY, xPercent: -50, yPercent: -50, scale: 0.1, opacity: 0 });
             this.pulsePill(config.color);
 
-            // Water Droplet Extraction (Randomized path to avoid collisions)
+            // Phase 1 — Squish: particle stretches out from the hub like a water droplet
             tl.to(particle, {
                 x: (startX + centerX) / 2,
                 y: startY,
@@ -187,7 +204,7 @@ export class CompanionHub {
                 ease: 'power2.out'
             });
 
-            // The Snap (Forms the physical packet at randomized center area)
+            // Phase 2 — Snap: reforms into a circle at a randomized midpoint
             tl.to(particle, {
                 x: centerX,
                 y: startY,
@@ -199,7 +216,7 @@ export class CompanionHub {
                 ease: PHYSICS.spring
             }, "-=0.1");
 
-            // The Beam Phase
+            // Phase 3 — Beam: accelerates offscreen with rotation and fade
             tl.to(particle, {
                 x: centerX + (Math.random() - 0.5) * 400,
                 y: endY,
@@ -213,7 +230,8 @@ export class CompanionHub {
             return;
         }
 
-        // Inbound Intercept Logic: Emerging from random points in the center area
+        // Inbound intercept: particle materializes from a random viewport point
+        // and converges on the hub, visually representing incoming data
         const midX = screenCenterX + (Math.random() - 0.5) * (window.innerWidth * 0.6);
         const midY = (window.innerHeight / 2) + (Math.random() - 0.5) * (window.innerHeight * 0.6);
 
@@ -227,7 +245,7 @@ export class CompanionHub {
             rotation: (Math.random() - 0.5) * 180 
         });
 
-        // Drop to randomized center area
+        // Phase 1 — Converge toward the hub
         tl.to(particle, {
             x: centerX,
             y: startY,
@@ -238,7 +256,7 @@ export class CompanionHub {
             ease: 'power3.out'
         });
 
-        // Stretch for entry
+        // Phase 2 — Stretch into the hub's gravitational pull
         tl.to(particle, {
             x: (startX + centerX) / 2,
             y: startY,
@@ -248,7 +266,7 @@ export class CompanionHub {
             ease: 'power2.in'
         });
 
-        // Absorb into Hub
+        // Phase 3 — Absorb: shrinks into the hub dot and triggers a pulse
         tl.to(particle, {
             x: startX,
             y: startY,
@@ -259,6 +277,64 @@ export class CompanionHub {
             ease: 'power2.in',
             onComplete: () => this.pulsePill(config.color)
         });
+    }
+
+    // Fires heart emoji particles using the outbound beam engine.
+    // Each heart follows a randomized arc toward the top of the viewport.
+    public triggerHeartBurst(count: number = 4) {
+        if (!this.config.showParticle) return;
+
+        const dotRect = this.iconWrapper.getBoundingClientRect();
+        const startX = dotRect.left + dotRect.width / 2;
+        const startY = dotRect.top + dotRect.height / 2;
+        const screenCenterX = window.innerWidth / 2;
+        const endY = -100;
+
+        for (let i = 0; i < count; i++) {
+            const heart = document.createElement('div');
+            heart.className = 'payload-particle-heart';
+            heart.textContent = '❤️';
+            this.particleLayer.appendChild(heart);
+
+            const centerX = screenCenterX + (Math.random() - 0.5) * 500;
+            const tl = gsap.timeline({ onComplete: () => heart.remove() });
+
+            gsap.set(heart, { x: startX, y: startY, xPercent: -50, yPercent: -50, scale: 0.1, opacity: 0 });
+            this.pulsePill('#fb7185');
+
+            // Phase 1 — Squish outward
+            tl.to(heart, {
+                x: (startX + centerX) / 2,
+                y: startY,
+                scaleX: 1.4,
+                scaleY: 0.6,
+                opacity: 1,
+                duration: 0.35,
+                ease: 'power2.out'
+            });
+
+            // Phase 2 — Snap into shape
+            tl.to(heart, {
+                x: centerX,
+                y: startY,
+                scaleX: 1,
+                scaleY: 1,
+                scale: 1,
+                duration: 0.4,
+                ease: PHYSICS.spring
+            }, '-=0.05');
+
+            // Phase 3 — Beam upward and fade
+            tl.to(heart, {
+                x: centerX + (Math.random() - 0.5) * 600,
+                y: endY,
+                scale: Math.random() * 0.5 + 0.3,
+                opacity: 0,
+                rotation: (Math.random() - 0.5) * 120,
+                duration: Math.random() * 0.5 + 0.7,
+                ease: 'power3.in'
+            }, '+=0.05');
+        }
     }
 
     private pulsePill(color: string) {
@@ -356,7 +432,7 @@ export class CompanionHub {
         this.isExpanded = true;
         this.swapIcon(this.ICONS[this.currentState] || this.ICONS.idle);
 
-        const isRight = this.config.position.includes('right');
+        const isRight = this.activePosition.includes('right');
         const marginProp = isRight ? 'marginRight' : 'marginLeft';
 
         gsap.killTweensOf(this.textWrapper);
@@ -381,7 +457,7 @@ export class CompanionHub {
 
         this.swapIcon(this.ICONS.sentry);
 
-        const isRight = this.config.position.includes('right');
+        const isRight = this.activePosition.includes('right');
         const marginProp = isRight ? 'marginRight' : 'marginLeft';
 
         gsap.killTweensOf(this.textWrapper);
@@ -425,7 +501,7 @@ export class CompanionHub {
                 font-family: 'Outfit', system-ui, sans-serif;
                 display: flex;
                 flex-direction: column;
-                /* Dynamic flex alignment handled by config */
+                /* Flex alignment set dynamically by updateConfig() */
             }
 
             .status-pill {
@@ -545,6 +621,18 @@ export class CompanionHub {
                 width: 18px;
                 height: 18px;
                 stroke-width: 2.5px;
+            }
+
+            .payload-particle-heart {
+                position: fixed;
+                top: 0;
+                left: 0;
+                font-size: 22px;
+                line-height: 1;
+                pointer-events: none;
+                z-index: 999999;
+                user-select: none;
+                filter: drop-shadow(0 0 6px rgba(251, 113, 133, 0.8));
             }
 
             @keyframes island-scan {

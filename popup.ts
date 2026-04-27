@@ -302,24 +302,42 @@ const initSafExtraction = () => {
     
     btnExtractSaf.addEventListener('click', async () => {
         AnimEngine.animatePressFeedback(btnExtractSaf);
-        const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (!activeTab?.id) return;
+        
+        // 1. Find if a portal tab is already open
+        const tabs = await chrome.tabs.query({});
+        const portalTab = tabs.find(tab => DOMAINS.PORTALS.some(d => tab.url?.includes(d)));
+
+        if (!portalTab) {
+            // No portal open? Open it and stop.
+            chrome.tabs.create({ url: APP_URLS.REGISTRATION });
+            return;
+        }
+
+        // 2. We have a tab, but is it active?
+        if (portalTab.id) {
+            chrome.tabs.update(portalTab.id, { active: true });
+            if (portalTab.windowId) chrome.windows.update(portalTab.windowId, { focused: true });
+        }
+
+        const targetTabId = portalTab.id;
+        if (!targetTabId) return;
 
         // UI Loading State
         const originalHtml = btnExtractSaf.innerHTML;
         btnExtractSaf.innerHTML = '<div style="display:flex; align-items:center; gap:0.5rem;"><iconify-icon icon="lucide:loader-2" class="animate-spin"></iconify-icon> Extracting...</div>';
+        btnExtractSaf.disabled = true;
         btnExtractSaf.classList.add('disabled-btn');
 
         try {
             // Attempt 1: Message directly
-            let response = await sendMessageToTab(activeTab.id, { action: 'EXTRACT_SAF_DATA' });
+            let response = await sendMessageToTab(targetTabId, { action: 'EXTRACT_SAF_DATA' });
 
             // Attempt 2: If script isn't there, inject and retry
             if (!response) {
-                const isInjected = await injectSafScraperScript(activeTab.id);
+                const isInjected = await injectSafScraperScript(targetTabId);
                 if (!isInjected) throw new Error("Could not access portal. Check extension permissions.");
                 
-                response = await sendMessageToTab(activeTab.id, { action: 'EXTRACT_SAF_DATA' });
+                response = await sendMessageToTab(targetTabId, { action: 'EXTRACT_SAF_DATA' });
             }
 
             // Handle Final Response
@@ -328,21 +346,8 @@ const initSafExtraction = () => {
                 updateDataStatusVisibility();
                 forceSyncWebToolsTabs(response.payload, 'SAF_EXTRACT');
                 
-                // Notify the Portal Hub
-                chrome.tabs.sendMessage(activeTab.id, {
-                    action: 'SHOW_BEAMING'
-                });
-                chrome.tabs.sendMessage(activeTab.id, {
-                    action: 'UPDATE_HUB_STATUS',
-                    title: 'Schedule Extracted!',
-                    subtitle: 'Beamed to Visualizer',
-                    state: 'success',
-                    icon: '🏢'
-                });
-                chrome.tabs.sendMessage(activeTab.id, {
-                    action: 'FIRE_PAYLOAD_BEAM',
-                    payloadType: 'extract'
-                });
+                // Note: Hub notifications are now handled directly by the scraper script 
+                // via local events for better responsiveness and to avoid double-triggering.
             } else {
                 throw new Error(response?.error || "Failed to extract SAF data. Ensure you are on the correct page.");
             }
@@ -356,6 +361,7 @@ const initSafExtraction = () => {
             });
         } finally {
             // Restore UI State
+            btnExtractSaf.disabled = false;
             btnExtractSaf.classList.remove('disabled-btn');
             btnExtractSaf.innerHTML = originalHtml;
         }
@@ -401,6 +407,7 @@ const initPrereqMapping = () => {
         // UI Loading State
         const originalHtml = btn.innerHTML;
         btn.innerHTML = `<div style="display:flex; align-items:center; gap:0.5rem;"><iconify-icon icon="lucide:loader-2" class="animate-spin"></iconify-icon> Extracting...</div>`;
+        btn.disabled = true;
         btn.classList.add('disabled-btn');
 
         try {
@@ -420,21 +427,8 @@ const initPrereqMapping = () => {
                 await chrome.storage.local.set({ latestCurriculum: response.payload });
                 forceSyncWebToolsTabs(response.payload, 'CURRICULUM');
 
-                // Notify the Portal Hub
-                chrome.tabs.sendMessage(activeTab.id, {
-                    action: 'SHOW_BEAMING'
-                });
-                chrome.tabs.sendMessage(activeTab.id, {
-                    action: 'UPDATE_HUB_STATUS',
-                    title: 'Curriculum Beamed!',
-                    subtitle: 'Check the Portal Parser',
-                    state: 'success',
-                    icon: '🗺️'
-                });
-                chrome.tabs.sendMessage(activeTab.id, {
-                    action: 'FIRE_PAYLOAD_BEAM',
-                    payloadType: 'extract'
-                });
+                // Note: Hub notifications are now handled directly by the scraper script 
+                // via local events for better responsiveness and to avoid double-triggering.
             } else {
                 throw new Error(response?.error || "Failed to locate curriculum data.");
             }
@@ -447,6 +441,7 @@ const initPrereqMapping = () => {
             });
         } finally {
             // Restore UI State
+            btn.disabled = false;
             btn.classList.remove('disabled-btn');
             btn.innerHTML = originalHtml;
         }
@@ -524,27 +519,80 @@ const initHubSettings = () => {
     const toggleShowHub = document.getElementById('setting-show-hub') as HTMLInputElement;
     const selectPosition = document.getElementById('setting-hub-position') as HTMLSelectElement;
     const toggleShowParticles = document.getElementById('setting-show-particles') as HTMLInputElement;
+    const toggleAutoPosition = document.getElementById('setting-auto-position') as HTMLInputElement;
+    const toggleShowGuide = document.getElementById('setting-show-guide') as HTMLInputElement | null;
+    const selectPreferredVertical = document.getElementById('setting-preferred-vertical') as HTMLSelectElement;
+    
+    const rowHubPosition = document.getElementById('row-hub-position') as HTMLElement;
+    const rowPreferredVertical = document.getElementById('row-preferred-vertical') as HTMLElement;
+    const rowShowParticles = document.getElementById('row-show-particles') as HTMLElement;
 
-    if (!toggleShowHub || !selectPosition || !toggleShowParticles) return;
+    if (!toggleShowHub || !selectPosition || !toggleShowParticles || !toggleAutoPosition || !selectPreferredVertical) return;
 
     // Load current config
     chrome.storage.local.get(['hubConfig'], (result) => {
         const config = result.hubConfig || {
             position: 'bottom-left',
             showParticle: true,
-            showHub: true
+            showHub: true,
+            showGuide: true,
+            autoPosition: true,
+            preferredVertical: 'bottom'
         };
 
         toggleShowHub.checked = config.showHub;
         selectPosition.value = config.position;
         toggleShowParticles.checked = config.showParticle;
+        
+        if (toggleShowGuide) {
+            toggleShowGuide.checked = config.showGuide !== undefined ? config.showGuide : true;
+        }
+        
+        // Defaults for new settings
+        toggleAutoPosition.checked = config.autoPosition !== undefined ? config.autoPosition : true;
+        selectPreferredVertical.value = config.preferredVertical || 'bottom';
+        
+        applyVisibilityLogic();
     });
 
+    const applyVisibilityLogic = () => {
+        if (toggleAutoPosition.checked) {
+            rowHubPosition.style.display = 'none';
+            rowPreferredVertical.style.display = 'flex';
+        } else {
+            rowHubPosition.style.display = 'flex';
+            rowPreferredVertical.style.display = 'none';
+        }
+
+        // Dependency Logic: Visual Particles tied to Show Hub
+        if (!toggleShowHub.checked) {
+            toggleShowParticles.disabled = true;
+            toggleShowParticles.checked = false; // Force off if hub is off
+            rowShowParticles.style.opacity = '0.5';
+            rowShowParticles.style.pointerEvents = 'none';
+        } else {
+            toggleShowParticles.disabled = false;
+            rowShowParticles.style.opacity = '1';
+            rowShowParticles.style.pointerEvents = 'auto';
+        }
+        
+        // Ensure accordion height recalculates if the group is open
+        const accordionContent = rowHubPosition.closest('.tool-group-content') as HTMLElement;
+        if (accordionContent) {
+            AnimEngine.recalculateHeight(accordionContent);
+        }
+    };
+
     const updateConfig = () => {
+        applyVisibilityLogic();
+        
         const newConfig = {
             position: selectPosition.value,
             showParticle: toggleShowParticles.checked,
-            showHub: toggleShowHub.checked
+            showHub: toggleShowHub.checked,
+            showGuide: toggleShowGuide ? toggleShowGuide.checked : true, // Keep true if toggle is hidden
+            autoPosition: toggleAutoPosition.checked,
+            preferredVertical: selectPreferredVertical.value
         };
 
         chrome.storage.local.set({ hubConfig: newConfig });
@@ -553,6 +601,9 @@ const initHubSettings = () => {
     toggleShowHub.addEventListener('change', updateConfig);
     selectPosition.addEventListener('change', updateConfig);
     toggleShowParticles.addEventListener('change', updateConfig);
+    if (toggleShowGuide) toggleShowGuide.addEventListener('change', updateConfig);
+    toggleAutoPosition.addEventListener('change', updateConfig);
+    selectPreferredVertical.addEventListener('change', updateConfig);
 };
 
 document.addEventListener('DOMContentLoaded', () => {

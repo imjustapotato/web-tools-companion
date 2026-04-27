@@ -1,6 +1,7 @@
-// Injected into solar.feutech.edu.ph to manually extract the SAF table DOM
+// Injected into the portal to manually extract the SAF table DOM
 import { beamLog } from './logger';
 
+/* Lookup Tables */
 const DAY_MAP: Record<string, number> = { 'M': 0, 'T': 1, 'W': 2, 'TH': 3, 'F': 4, 'S': 5 };
 const TW_COLORS = [
     'bg-emerald-600', 'bg-cyan-600', 'bg-indigo-600', 'bg-purple-600',
@@ -41,9 +42,11 @@ const scrapeAssessmentTable = (): PlotterBlock[] => {
 
         if (!courseCode || courseCode.includes('TOTAL UNITS')) return;
 
+        // Strip trailing 'L' so lecture and lab share the same color
         const baseCode = courseCode.replace(/L$/, '');
         let assignedColor = colorMap.get(baseCode);
         
+        // Deterministic hash ensures the same subject always gets the same color
         if (!assignedColor) {
             let hash = 0;
             for (let i = 0; i < baseCode.length; i++) {
@@ -83,7 +86,7 @@ const scrapeAssessmentTable = (): PlotterBlock[] => {
     return blocks;
 };
 
-// Normalize and count unique subjects
+// Count unique subjects by stripping the lab suffix before deduplication
 const getUniqueSubjectCount = (blocksArray: PlotterBlock[]) => {
     const unique = new Set<string>();
     blocksArray.forEach(block => {
@@ -95,15 +98,119 @@ const getUniqueSubjectCount = (blocksArray: PlotterBlock[]) => {
     return unique.size;
 };
 
-// Listen for the extraction command from the popup
-chrome.runtime.onMessage.addListener((request: any, sender: any, sendResponse: any) => {
-    if (request.action === 'EXTRACT_SAF_DATA') {
+// Guard flag prevents duplicate listeners when the content script re-injects
+if (!(window as any).__SAF_SCRAPER_LOADED__) {
+    (window as any).__SAF_SCRAPER_LOADED__ = true;
+    
+    chrome.runtime.onMessage.addListener((request: any, sender: any, sendResponse: any) => {
+        if (request.action === 'EXTRACT_SAF_DATA') {
         beamLog("Manual SAF extraction requested", 'info');
         
+        // 1. Context Mismatch Check
+        const currentPath = window.location.pathname.toLowerCase();
+        const isSafPage = currentPath.includes('/student/saf') || currentPath.includes('/students/saf');
+
+        if (!isSafPage) {
+            beamLog("Extraction failed: Not on SAF page.", 'error');
+            
+            // Persist guide state so the portal-guide can pick it up after navigation
+            chrome.storage.local.set({
+                activeGuide: {
+                    type: 'wrong_page',
+                    selector: 'a[href*="/student/saf"]',
+                    message: "Hey, it seems you aren't on the SAF page. Navigate first to Schedule & Assessment.",
+                    count: 1,
+                    earnedReward: false
+                }
+            });
+
+            // Trigger Hub feedback for the error
+            window.dispatchEvent(new CustomEvent('WEB_TOOLS_HUB_ACTION', {
+                detail: {
+                    action: 'UPDATE_HUB_STATUS',
+                    title: 'Wrong Page',
+                    subtitle: 'Navigate to SAF to extract',
+                    state: 'error'
+                }
+            }));
+            
+            // Trigger highlight immediately on the current page
+            window.dispatchEvent(new CustomEvent('WEB_TOOLS_HUB_ACTION', {
+                detail: {
+                    action: 'HIGHLIGHT_ELEMENT',
+                    selector: 'a[href*="/student/saf"]',
+                    message: "Hey, it seems you aren't on the SAF page. Navigate first to Schedule & Assessment."
+                }
+            }));
+
+            sendResponse({ success: false, error: "Not on SAF page. Please navigate to Schedule & Assessment." });
+            return true;
+        }
+
+        // 2. UI Ghosting Check — portal loaded but critical elements are missing
+        const hasSchoolYear = !!document.querySelector('#school_year');
+        const hasSubmit = !!document.querySelector('#submit');
+
+        if (!hasSchoolYear || !hasSubmit) {
+            beamLog("Extraction failed: UI Controls missing (Ghosting).", 'error');
+            
+            window.dispatchEvent(new CustomEvent('WEB_TOOLS_HUB_ACTION', {
+                detail: { action: 'UPDATE_HUB_STATUS', title: 'UI Missing', subtitle: 'Portal elements missing', state: 'error' }
+            }));
+            
+            window.dispatchEvent(new CustomEvent('WEB_TOOLS_HUB_ACTION', {
+                detail: { action: 'HIGHLIGHT_ELEMENT', selector: 'a[href="/logout"]', message: "The portal UI is ghosting us. Refresh the page or click here to Logout and try again.", position: 'bottom' }
+            }));
+
+            sendResponse({ success: false, error: "Critical portal UI elements are missing." });
+            return true;
+        }
+
+        // 3. Proceed with Extraction
         const blocks = scrapeAssessmentTable();
         
         if (blocks.length === 0) {
+            const rows = document.querySelectorAll('.assessment_schedule tbody tr');
+            const hasDataRows = Array.from(rows).some(r => r.textContent?.toLowerCase().includes('subject') || r.children.length > 2);
+
+            if (hasDataRows) {
+                // Table has rows but scraper couldn't parse them — likely a DOM change
+                beamLog("Extraction failed: Could not parse populated table data.", 'error');
+                
+                window.dispatchEvent(new CustomEvent('WEB_TOOLS_HUB_ACTION', {
+                    detail: { action: 'UPDATE_HUB_STATUS', title: 'Extraction Failed', subtitle: 'Portal DOM changed', state: 'error' }
+                }));
+                
+                window.dispatchEvent(new CustomEvent('WEB_TOOLS_HUB_ACTION', {
+                    detail: { action: 'HIGHLIGHT_ELEMENT', selector: '.assessment_schedule', message: "We see your subjects, but we can't read them! The portal structure might have changed. Please report this bug." }
+                }));
+
+                sendResponse({ success: false, error: "Extraction failed. The portal structure might have changed." });
+                return true;
+            }
+
+            // No data rows at all — guide the user to select a term and submit
             beamLog("Extraction failed: Could not locate SAF data", 'error');
+            
+            chrome.storage.local.set({
+                activeGuide: {
+                    type: 'missing_data',
+                    count: 1,
+                    earnedReward: false
+                }
+            });
+
+            window.dispatchEvent(new CustomEvent('WEB_TOOLS_HUB_ACTION', {
+                detail: { action: 'UPDATE_HUB_STATUS', title: 'Empty SAF', subtitle: 'Select a term to view subjects', state: 'error' }
+            }));
+            
+            window.dispatchEvent(new CustomEvent('WEB_TOOLS_HUB_ACTION', {
+                detail: { action: 'HIGHLIGHT_ELEMENT', selector: '#school_year', message: "Select a term here..." }
+            }));
+            window.dispatchEvent(new CustomEvent('WEB_TOOLS_HUB_ACTION', {
+                detail: { action: 'HIGHLIGHT_ELEMENT', selector: '#submit', message: "...and then click Submit.", position: 'bottom' }
+            }));
+
             sendResponse({ success: false, error: "Could not locate SAF data. Ensure you have submitted the term form." });
             return true;
         }
@@ -123,7 +230,7 @@ chrome.runtime.onMessage.addListener((request: any, sender: any, sendResponse: a
 
         beamLog(`[SAF] Schedule Extracted (${uniqueCount} subjects)`, 'success');
         
-        // Trigger Hub feedback
+        // Notify Hub of successful extraction
         window.dispatchEvent(new CustomEvent('WEB_TOOLS_HUB_ACTION', {
             detail: {
                 action: 'UPDATE_HUB_STATUS',
@@ -133,12 +240,13 @@ chrome.runtime.onMessage.addListener((request: any, sender: any, sendResponse: a
             }
         }));
 
-        // Trigger the fluid particle (Outbound Extract)
+        // Fire outbound beam particle to visually confirm data was sent
         window.dispatchEvent(new CustomEvent('WEB_TOOLS_HUB_ACTION', {
             detail: { action: 'FIRE_PAYLOAD_BEAM', payloadType: 'extract' }
         }));
 
         sendResponse({ success: true, payload: targetJSON });
-        return true; // Keep message channel open for the response to be sent
+        return true; // Keep message channel open for async sendResponse
     }
 });
+}

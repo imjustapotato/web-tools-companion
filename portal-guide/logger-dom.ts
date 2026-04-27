@@ -1,6 +1,8 @@
 /**
  * Logger Hub (Shadow DOM Component)
- * Manages the notification toast stack with Smart Aggregation.
+ * Renders a toast notification stack inside the Companion Hub's Shadow DOM.
+ * Duplicate messages aggregate into a single toast with a counter badge
+ * instead of spawning redundant notifications.
  */
 import { gsap } from 'gsap';
 
@@ -15,7 +17,7 @@ export class LoggerHub {
     private container: HTMLDivElement;
     private activeToasts: Map<string, ActiveToast> = new Map();
 
-    // Solar Icon SVGs for Toasts
+    /* Toast Icon SVGs */
     private readonly ICONS = {
         success: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"><g fill="none" stroke="#10b981" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="m7 12.5l3 3l7-7"/><circle cx="12" cy="12" r="9"/></g></svg>`,
         warn: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"><g fill="none" stroke="#f59e0b" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"><path d="M12 9v4m0 4h.01M12 3a9 9 0 1 0 0 18a9 9 0 0 0 0-18"/></g></svg>`,
@@ -71,7 +73,7 @@ export class LoggerHub {
 
         this.activeToasts.set(toastId, activeToast);
 
-        // Entrance Physics
+        /* Entrance Animation */
         gsap.fromTo(toast, 
             { opacity: 0, x: -30, scale: 0.9 },
             { opacity: 1, x: 0, scale: 1, duration: 0.4, ease: 'back.out(1.5)' }
@@ -87,13 +89,13 @@ export class LoggerHub {
             countEl.classList.add('visible');
         }
 
-        // Tactile Bump Physics
+        // Tactile bump so the user notices the count increment
         gsap.fromTo(toast.element, 
             { scale: 1 }, 
             { scale: 1.05, duration: 0.1, yoyo: true, repeat: 1, ease: 'power2.out' }
         );
 
-        // Reset the timer
+        // Reset auto-dismiss so aggregated toasts stay visible longer
         clearTimeout(toast.timer);
         toast.timer = this.startRemovalTimer(toastId);
     }
