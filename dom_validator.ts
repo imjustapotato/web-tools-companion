@@ -43,17 +43,36 @@ export const scrapeExtJSGrid = (): ScrapedCourse[] => {
 };
 
 
+// Normalize and count unique subjects
+const getUniqueSubjectCount = (data: any[], isDOM: boolean) => {
+    const unique = new Set<string>();
+    data.forEach(item => {
+        // Extract raw course code
+        let code = isDOM ? item.course : (item.name ? item.name.split(' - ')[0] : "");
+        if (code) {
+            // Strip trailing 'L' (case-insensitive) to combine lab and lecture into one base subject
+            const baseCode = code.trim().replace(/L$/i, '');
+            unique.add(baseCode);
+        }
+    });
+    return unique.size;
+};
+
 // simple comaparison health check
 export const runValidationCheck = (xhrData: any[]) => {
     console.log("[Validator] Initiating DOM Scrape for validation...");
     const domData = scrapeExtJSGrid();
 
+    const xhrUniqueCount = getUniqueSubjectCount(xhrData, false);
+    const domUniqueCount = getUniqueSubjectCount(domData, true);
+
     // length integrity check
-    if (xhrData.length !== domData.length) {
-        console.error(`[Validator] Mismatch! XHR extracted ${xhrData.length} items, but DOM visually has ${domData.length} items.`);
+    if (xhrUniqueCount !== domUniqueCount) {
+        // Silenced for Extension UI, but kept in Browser Console for debugging
+        console.log(`[Validator] Mismatch! XHR extracted ${xhrUniqueCount} unique subjects (${xhrData.length} meetings), but DOM visually has ${domUniqueCount} unique subjects (${domData.length} rows).`);
     } else {
-        console.log("[Validator] Counts match perfectly. UI and Network layer are in sync.");
+        console.log(`[Validator] Counts match perfectly. UI and Network layer both report ${xhrUniqueCount} unique subjects.`);
     }
 
-    return { isValid: xhrData.length === domData.length, domData };
+    return { isValid: xhrUniqueCount === domUniqueCount, domData };
 };

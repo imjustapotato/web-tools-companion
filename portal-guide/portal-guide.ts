@@ -2,7 +2,7 @@
  * Portal Guide Orchestrator
  * Manages the Companion Hub and future guide logic on the SOLAR Portal.
  */
-import { CompanionHub } from './status-dom';
+import { CompanionHub, HubConfig } from './status-dom';
 import { LoggerHub } from './logger-dom';
 import { PortalGuide } from './guide-dom';
 
@@ -12,30 +12,39 @@ let hubUI: CompanionHub | null = null;
 let logger: LoggerHub | null = null;
 let guide: PortalGuide | null = null;
 
+// Default Configuration
+let currentConfig: HubConfig = {
+    position: 'bottom-left',
+    showParticle: true,
+    showHub: true
+};
+
 function initializeHub() {
     if (hubUI) return;
     
     try {
-        if (!document.body) {
-            console.warn("[Web Tools] document.body not found. Hub injection delayed.");
-            return;
-        }
+        if (!document.body) return;
 
-        // 1. Create host
         hubHost = document.createElement('div');
         hubHost.id = 'web-tools-companion-hub-host';
         document.body.appendChild(hubHost);
 
-        // 2. Initialize UI
-        hubUI = new CompanionHub(hubHost);
+        hubUI = new CompanionHub(hubHost, currentConfig);
         
-        // 3. Initialize Logger and Guide
         const shadowContainer = hubUI.shadowRoot.getElementById('companion-hub-container');
         logger = new LoggerHub(shadowContainer || hubUI.shadowRoot);
         guide = new PortalGuide();
         
-        // 4. Set initial state based on storage
-        chrome.storage.local.get(['autoSchedEnabled'], (result) => {
+        applyHubVisibility();
+
+        // Hydrate state from storage
+        chrome.storage.local.get(['autoSchedEnabled', 'hubConfig'], (result) => {
+            if (result.hubConfig) {
+                currentConfig = { ...currentConfig, ...result.hubConfig };
+                hubUI?.updateConfig(currentConfig);
+                applyHubVisibility();
+            }
+
             if (result.autoSchedEnabled) {
                 hubUI?.update("Auto-Sync Active", "Monitoring Portal...", 'active');
             } else {
@@ -49,31 +58,19 @@ function initializeHub() {
     }
 }
 
-// Storage Listener for Mode Persistence
-chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'local' && changes.autoSchedEnabled && hubUI) {
-        const active = changes.autoSchedEnabled.newValue;
-        if (active) {
-            hubUI.update("Auto-Sync Active", "Monitoring Portal...", 'active');
-        } else {
-            hubUI.update("Auto-Sync Inactive", "Enable in settings to begin.", 'idle');
-        }
+function applyHubVisibility() {
+    if (!hubHost) return;
+    
+    // Completely hide the container if the user opted out
+    if (!currentConfig.showHub) {
+        hubHost.style.display = 'none';
+    } else {
+        hubHost.style.display = 'block';
     }
-});
+}
 
-// Message Relay (External from Background/Popup)
+// Message Relay
 chrome.runtime.onMessage.addListener((request) => {
-    handleHubAction(request);
-});
-
-// Local Event Relay (From other content scripts like autosched.ts)
-window.addEventListener('WEB_TOOLS_HUB_ACTION', (event: any) => {
-    if (event.detail) {
-        handleHubAction(event.detail);
-    }
-});
-
-function handleHubAction(request: any) {
     if (!hubUI) initializeHub();
     if (!hubUI) return;
 
@@ -84,6 +81,10 @@ function handleHubAction(request: any) {
         
         if (request.action === 'SHOW_BEAMING') {
             hubUI.showBeaming();
+        }
+
+        if (request.action === 'FIRE_PAYLOAD_BEAM') {
+            hubUI.triggerPayloadBeam(request.payloadType, request.icon);
         }
 
         if (request.action === 'SHOW_LOG' && logger) {
@@ -100,9 +101,55 @@ function handleHubAction(request: any) {
     } catch (e) {
         console.error("[Web Tools] Error handling message in Portal Hub:", e);
     }
+});
+
+// Local Event Relay
+window.addEventListener('WEB_TOOLS_HUB_ACTION', (event: any) => {
+    if (event.detail) handleHubAction(event.detail);
+});
+
+// Persistence & Settings Listener
+chrome.storage.onChanged.addListener((changes, area) => {
+    if (area !== 'local' || !hubUI) return;
+
+    if (changes.hubConfig) {
+        currentConfig = { ...currentConfig, ...changes.hubConfig.newValue };
+        hubUI.updateConfig(currentConfig);
+        applyHubVisibility();
+    }
+
+    if (changes.autoSchedEnabled) {
+        const active = changes.autoSchedEnabled.newValue;
+        if (active) hubUI.update("Auto-Sync Active", "Monitoring Portal...", 'active');
+        else hubUI.update("Auto-Sync Inactive", "Enable in settings to begin.", 'idle');
+    }
+});
+
+function handleHubAction(request: any) {
+    if (!hubUI) initializeHub();
+    if (!hubUI) return;
+
+    if (request.action === 'UPDATE_HUB_STATUS') {
+        hubUI.update(request.title, request.subtitle, request.state);
+    }
+    
+    if (request.action === 'SHOW_BEAMING') {
+        hubUI.showBeaming();
+    }
+
+    if (request.action === 'FIRE_PAYLOAD_BEAM') {
+        hubUI.triggerPayloadBeam(request.payloadType, request.icon);
+    }
+
+    if (request.action === 'SHOW_LOG' && logger) {
+        logger.log(request.message, request.logType);
+    }
+
+    if (request.action === 'HIGHLIGHT_ELEMENT' && guide) {
+        guide.highlightElement(request.selector, request.message);
+    }
 }
 
-// Auto-init on load
 if (document.readyState === 'complete' || document.readyState === 'interactive') {
     initializeHub();
 } else {

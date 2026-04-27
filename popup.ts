@@ -334,10 +334,14 @@ const initSafExtraction = () => {
                 });
                 chrome.tabs.sendMessage(activeTab.id, {
                     action: 'UPDATE_HUB_STATUS',
-                    title: 'Rooms Extracted!',
+                    title: 'Schedule Extracted!',
                     subtitle: 'Beamed to Visualizer',
                     state: 'success',
                     icon: '🏢'
+                });
+                chrome.tabs.sendMessage(activeTab.id, {
+                    action: 'FIRE_PAYLOAD_BEAM',
+                    payloadType: 'extract'
                 });
             } else {
                 throw new Error(response?.error || "Failed to extract SAF data. Ensure you are on the correct page.");
@@ -427,6 +431,10 @@ const initPrereqMapping = () => {
                     state: 'success',
                     icon: '🗺️'
                 });
+                chrome.tabs.sendMessage(activeTab.id, {
+                    action: 'FIRE_PAYLOAD_BEAM',
+                    payloadType: 'extract'
+                });
             } else {
                 throw new Error(response?.error || "Failed to locate curriculum data.");
             }
@@ -511,6 +519,42 @@ const initGlobalPhysics = () => {
     });
 };
 
+// Module: Companion Hub Settings
+const initHubSettings = () => {
+    const toggleShowHub = document.getElementById('setting-show-hub') as HTMLInputElement;
+    const selectPosition = document.getElementById('setting-hub-position') as HTMLSelectElement;
+    const toggleShowParticles = document.getElementById('setting-show-particles') as HTMLInputElement;
+
+    if (!toggleShowHub || !selectPosition || !toggleShowParticles) return;
+
+    // Load current config
+    chrome.storage.local.get(['hubConfig'], (result) => {
+        const config = result.hubConfig || {
+            position: 'bottom-left',
+            showParticle: true,
+            showHub: true
+        };
+
+        toggleShowHub.checked = config.showHub;
+        selectPosition.value = config.position;
+        toggleShowParticles.checked = config.showParticle;
+    });
+
+    const updateConfig = () => {
+        const newConfig = {
+            position: selectPosition.value,
+            showParticle: toggleShowParticles.checked,
+            showHub: toggleShowHub.checked
+        };
+
+        chrome.storage.local.set({ hubConfig: newConfig });
+    };
+
+    toggleShowHub.addEventListener('change', updateConfig);
+    selectPosition.addEventListener('change', updateConfig);
+    toggleShowParticles.addEventListener('change', updateConfig);
+};
+
 document.addEventListener('DOMContentLoaded', () => {
     initNavigation();
     updateDataStatusVisibility();
@@ -519,6 +563,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initSafExtraction();
     initPrereqMapping();
     initAccordions();
+    initHubSettings();
     initActivityConsole();
     initGlobalPhysics();
 });

@@ -108,6 +108,58 @@
             </div>
         </div>
 
+        <!-- Tool 3: Companion Hub Settings -->
+        <details class="tool-group">
+            <summary class="tool-group-summary">
+                <div class="summary-title-container">
+                    <iconify-icon icon="lucide:settings-2" class="summary-icon"></iconify-icon>
+                    <span>Companion Hub Settings</span>
+                </div>
+                <iconify-icon icon="lucide:chevron-down" class="summary-chevron"></iconify-icon>
+            </summary>
+
+            <div class="tool-group-content">
+                <div class="tool-group-inner">
+                    
+                    <div class="settings-row">
+                        <div class="settings-label">
+                            <span class="settings-title">Show Hub</span>
+                            <span class="settings-desc">Enable Dynamic Island on portals</span>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="setting-show-hub" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="settings-row">
+                        <div class="settings-label">
+                            <span class="settings-title">Hub Position</span>
+                            <span class="settings-desc">Screen corner for the hub</span>
+                        </div>
+                        <select id="setting-hub-position" class="settings-select">
+                            <option value="bottom-left">Bottom Left</option>
+                            <option value="bottom-right">Bottom Right</option>
+                            <option value="top-left">Top Left</option>
+                            <option value="top-right">Top Right</option>
+                        </select>
+                    </div>
+
+                    <div class="settings-row">
+                        <div class="settings-label">
+                            <span class="settings-title">Visual Particles</span>
+                            <span class="settings-desc">Show data beam animations</span>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="setting-show-particles" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                </div>
+            </div>
+        </details>
+
         <!-- Developer / Activity Console -->
         <details class="tool-group">
             <summary class="tool-group-summary">

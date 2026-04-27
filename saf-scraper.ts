@@ -83,6 +83,18 @@ const scrapeAssessmentTable = (): PlotterBlock[] => {
     return blocks;
 };
 
+// Normalize and count unique subjects
+const getUniqueSubjectCount = (blocksArray: PlotterBlock[]) => {
+    const unique = new Set<string>();
+    blocksArray.forEach(block => {
+        let code = block.name ? block.name.split(' - ')[0] : "";
+        if (code) {
+            unique.add(code.trim().replace(/L$/i, ''));
+        }
+    });
+    return unique.size;
+};
+
 // Listen for the extraction command from the popup
 chrome.runtime.onMessage.addListener((request: any, sender: any, sendResponse: any) => {
     if (request.action === 'EXTRACT_SAF_DATA') {
@@ -107,16 +119,23 @@ chrome.runtime.onMessage.addListener((request: any, sender: any, sendResponse: a
             meta: { defaultColor: "bg-sky-600" }
         };
 
-        beamLog(`[SAF] Schedule Extracted (${blocks.length} subjects)`, 'success');
+        const uniqueCount = getUniqueSubjectCount(blocks);
+
+        beamLog(`[SAF] Schedule Extracted (${uniqueCount} subjects)`, 'success');
         
         // Trigger Hub feedback
         window.dispatchEvent(new CustomEvent('WEB_TOOLS_HUB_ACTION', {
             detail: {
                 action: 'UPDATE_HUB_STATUS',
                 title: 'Schedule Extracted',
-                subtitle: `${blocks.length} subjects found on SAF`,
+                subtitle: `${uniqueCount} subjects found on SAF`,
                 state: 'success'
             }
+        }));
+
+        // Trigger the fluid particle (Outbound Extract)
+        window.dispatchEvent(new CustomEvent('WEB_TOOLS_HUB_ACTION', {
+            detail: { action: 'FIRE_PAYLOAD_BEAM', payloadType: 'extract' }
         }));
 
         sendResponse({ success: true, payload: targetJSON });

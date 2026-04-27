@@ -24,6 +24,11 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
             </div>
         `;
 
+        // Trigger the fluid particle (Outbound Extract)
+        window.dispatchEvent(new CustomEvent('WEB_TOOLS_HUB_ACTION', {
+            detail: { action: 'FIRE_PAYLOAD_BEAM', payloadType: 'extract' }
+        }));
+
         sendResponse({ success: true, payload: payload });
         return true; // Keep message channel open for the response to be sent
     }

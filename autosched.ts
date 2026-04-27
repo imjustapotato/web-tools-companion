@@ -261,12 +261,16 @@ const processXMLToTargetJSON = (xmlString: string, prevBlocks: PlotterBlock[] = 
         blocks: blocks
     };
 
-    // --- Subject Tracking Logic ---
-    const added = currentCodes.filter(c => !lastEnrolledCodes.includes(c));
-    const dropped = lastEnrolledCodes.filter(c => !currentCodes.includes(c));
-    lastEnrolledCodes = [...currentCodes];
+    // Subject Tracking Logic (Normalized)
+    const currentUniqueBaseCodes = new Set<string>();
+    currentCodes.forEach(code => currentUniqueBaseCodes.add(code.trim().replace(/L$/i, '')));
+    const currentUniqueArray = Array.from(currentUniqueBaseCodes);
 
-    let changeMsg = `[AutoSched] Intercepted ${blocks.length} subjects.`;
+    const added = currentUniqueArray.filter(c => !lastEnrolledCodes.includes(c));
+    const dropped = lastEnrolledCodes.filter(c => !currentUniqueArray.includes(c));
+    lastEnrolledCodes = [...currentUniqueArray];
+
+    let changeMsg = `[AutoSched] Intercepted ${currentUniqueArray.length} subjects.`;
     if (added.length > 0) changeMsg = `[AutoSched] Added ${added.join(', ')}`;
     else if (dropped.length > 0) changeMsg = `[AutoSched] Dropped ${dropped.join(', ')}`;
 
@@ -276,6 +280,22 @@ const processXMLToTargetJSON = (xmlString: string, prevBlocks: PlotterBlock[] = 
 
     chrome.storage.local.set({ latestSchedule: finalJSON }, () => {
         beamLog(changeMsg, 'success');
+
+        // Always fire a sync beam for confirmation that data was touched
+        window.dispatchEvent(new CustomEvent('WEB_TOOLS_HUB_ACTION', {
+            detail: { action: 'FIRE_PAYLOAD_BEAM', payloadType: 'sync' }
+        }));
+
+        // Trigger additional context-aware beams for subject changes
+        if (added.length > 0) {
+            window.dispatchEvent(new CustomEvent('WEB_TOOLS_HUB_ACTION', {
+                detail: { action: 'FIRE_PAYLOAD_BEAM', payloadType: 'add' }
+            }));
+        } else if (dropped.length > 0) {
+            window.dispatchEvent(new CustomEvent('WEB_TOOLS_HUB_ACTION', {
+                detail: { action: 'FIRE_PAYLOAD_BEAM', payloadType: 'drop' }
+            }));
+        }
     });
 
     return finalJSON;
@@ -321,10 +341,20 @@ const processSAFDocument = (doc: Document) => {
     });
 
     chrome.storage.local.get(['latestSchedule'], (result: StorageItems) => {
-        if (!result.latestSchedule) return;
+        // Confirmation beam: The extension has successfully processed the SAF document
+        window.dispatchEvent(new CustomEvent('WEB_TOOLS_HUB_ACTION', {
+            detail: { action: 'FIRE_PAYLOAD_BEAM', payloadType: 'sync' }
+        }));
+
+        if (!result.latestSchedule) {
+            beamLog(`[AutoSched] SAF Scanned: No active schedule found in storage to merge rooms into.`, 'info');
+            return;
+        }
 
         const schedule = result.latestSchedule;
         let isUpdated = false;
+        
+        beamLog(`[AutoSched] SAF Scanned: Found ${roomMap.size} room assignments. Checking ${schedule.blocks.length} schedule blocks...`, 'info');
 
         schedule.blocks.forEach((block) => {
             const rawCourseCode = block.name.split(' - ')[0].trim();
@@ -353,6 +383,11 @@ const processSAFDocument = (doc: Document) => {
                         state: 'success'
                     }
                 }));
+
+                // Trigger the fluid particle (Outbound Sync)
+                window.dispatchEvent(new CustomEvent('WEB_TOOLS_HUB_ACTION', {
+                    detail: { action: 'FIRE_PAYLOAD_BEAM', payloadType: 'sync' }
+                }));
             });
         }
     });
@@ -374,27 +409,30 @@ window.addEventListener('message', (event) => {
             if (result.autoSchedEnabled) {
                 beamLog("[AutoSched] Intercepting Enrollment Data...", 'info');
                 
-                // Only signal Hub if not already in an active burst
+                window.dispatchEvent(new CustomEvent('WEB_TOOLS_HUB_ACTION', {
+                    detail: { action: 'SHOW_BEAMING' }
+                }));
+
+                window.dispatchEvent(new CustomEvent('WEB_TOOLS_HUB_ACTION', {
+                    detail: { action: 'FIRE_PAYLOAD_BEAM', payloadType: 'intercept' }
+                }));
+
+                window.dispatchEvent(new CustomEvent('WEB_TOOLS_HUB_ACTION', {
+                    detail: {
+                        action: 'UPDATE_HUB_STATUS',
+                        title: 'Auto-Sync Active',
+                        subtitle: 'Intercepting Enrollment Data...',
+                        state: 'active'
+                    }
+                }));
+
+                // Only perform heavy background logic if not in an active burst
                 const now = Date.now();
                 if (now - ((window as any)._lastHubSignal || 0) > 2000) {
                     (window as any)._lastHubSignal = now;
-                    
-                    window.dispatchEvent(new CustomEvent('WEB_TOOLS_HUB_ACTION', {
-                        detail: { action: 'SHOW_BEAMING' }
-                    }));
-
-                    window.dispatchEvent(new CustomEvent('WEB_TOOLS_HUB_ACTION', {
-                        detail: {
-                            action: 'UPDATE_HUB_STATUS',
-                            title: 'Auto-Sync Active',
-                            subtitle: 'Intercepting Enrollment Data...',
-                            state: 'active'
-                        }
-                    }));
+                    const prevBlocks = result.latestSchedule?.blocks || [];
+                    processXMLToTargetJSON(event.data.data, prevBlocks);
                 }
-
-                const prevBlocks = result.latestSchedule?.blocks || [];
-                processXMLToTargetJSON(event.data.data, prevBlocks);
             }
         });
     }

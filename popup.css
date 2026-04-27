@@ -486,6 +486,93 @@ details[open] .summary-chevron {
     padding: 2rem;
 }
 
+/* Settings Controls */
+.settings-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.5rem 0.25rem;
+    gap: 1rem;
+}
+
+.settings-label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.settings-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.settings-desc {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+}
+
+/* Custom Select */
+.settings-select {
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-strong);
+    color: var(--text-primary);
+    padding: 0.4rem 0.6rem;
+    border-radius: var(--radius-sm);
+    font-size: 0.75rem;
+    font-family: inherit;
+    outline: none;
+    cursor: pointer;
+    transition: border-color var(--transition-fast);
+}
+
+.settings-select:hover {
+    border-color: var(--accent-primary);
+}
+
+/* Custom Switch (Toggle) */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 32px;
+    height: 18px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background-color: var(--bg-surface-hover);
+    transition: .4s;
+    border-radius: 34px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 12px;
+    width: 12px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: .4s;
+    border-radius: 50%;
+}
+
+input:checked + .slider {
+    background-color: var(--accent-primary);
+}
+
+input:checked + .slider:before {
+    transform: translateX(14px);
+}
+
 .modal-card {
     background-color: var(--bg-surface);
     border: 1px solid var(--border-strong);

@@ -11,9 +11,17 @@ const PHYSICS = {
     snap: 'expo.out'
 };
 
+export type BeamAction = 'add' | 'drop' | 'extract' | 'sync' | 'intercept';
+
+export interface HubConfig {
+    position: 'bottom-left' | 'bottom-right' | 'top-left' | 'top-right';
+    showParticle: boolean;
+    showHub: boolean;
+}
+
 export class CompanionHub {
-    // --- Global / Configuration ---
     public shadowRoot: ShadowRoot;
+    private config: HubConfig;
     
     private readonly ICONS = {
         idle: `<div class="sentry-dot"></div>`,
@@ -22,7 +30,6 @@ export class CompanionHub {
         sentry: `<div class="sentry-dot"></div>`
     };
 
-    // --- DOM References ---
     private container!: HTMLDivElement;
     private statusPill!: HTMLDivElement;
     private iconWrapper!: HTMLDivElement;
@@ -30,29 +37,31 @@ export class CompanionHub {
     private statusTitleEl!: HTMLDivElement;
     private statusSubtitleEl!: HTMLDivElement;
 
-    // --- State & Timers ---
     private isExpanded: boolean = false;
     private autoHideTimer: ReturnType<typeof setTimeout> | null = null;
     private currentState: 'idle' | 'active' | 'success' = 'idle';
     
-    // Queue System
     private messageQueue: Array<{title: string, subtitle: string, state: any}> = [];
     private isProcessingQueue: boolean = false;
 
-    constructor(host: HTMLElement) {
+    constructor(host: HTMLElement, initialConfig: HubConfig) {
         this.shadowRoot = host.attachShadow({ mode: 'open' });
+        this.config = initialConfig;
         
         this.buildDOM();
         this.injectStyles();
         this.bindEvents();
-
-        // Default to Sentry mode
+        this.updateConfig(this.config);
         this.minimize(true);
     }
 
-    // --- Core Architecture Methods ---
-
     private buildDOM() {
+        // 1. Create a fixed layer for particles that doesn't resize with the Hub
+        this.particleLayer = document.createElement('div');
+        this.particleLayer.id = 'particle-layer';
+        this.shadowRoot.appendChild(this.particleLayer);
+
+        // 2. Main Hub Container
         this.container = document.createElement('div');
         this.container.id = 'companion-hub-container';
         
@@ -68,11 +77,9 @@ export class CompanionHub {
         
         this.statusTitleEl = document.createElement('div');
         this.statusTitleEl.className = 'status-title';
-        this.statusTitleEl.textContent = 'Auto-Sync Active';
-
+        
         this.statusSubtitleEl = document.createElement('div');
         this.statusSubtitleEl.className = 'status-subtitle';
-        this.statusSubtitleEl.textContent = 'Monitoring Portal...';
 
         this.textWrapper.appendChild(this.statusTitleEl);
         this.textWrapper.appendChild(this.statusSubtitleEl);
@@ -90,28 +97,183 @@ export class CompanionHub {
         });
 
         this.statusPill.addEventListener('mouseleave', () => {
-            if (this.currentState !== 'active') {
-                this.startAutoHideTimer();
-            }
+            if (this.currentState !== 'active') this.startAutoHideTimer();
             gsap.to(this.statusPill, { y: 0, scale: 1, duration: 0.3, ease: 'power2.out' });
         });
 
         this.statusPill.addEventListener('click', (e) => {
             e.stopPropagation();
-            if (this.isExpanded) {
-                this.minimize();
-            } else {
-                this.expand();
-            }
+            if (this.isExpanded) this.minimize();
+            else this.expand();
         });
     }
 
-    // --- Public API ---
+    public updateConfig(newConfig: HubConfig) {
+        this.config = newConfig;
+        
+        const isTop = this.config.position.includes('top');
+        const isRight = this.config.position.includes('right');
+
+        this.container.style.top = isTop ? '24px' : 'auto';
+        this.container.style.bottom = !isTop ? '24px' : 'auto';
+        this.container.style.left = !isRight ? '24px' : 'auto';
+        this.container.style.right = isRight ? '24px' : 'auto';
+        
+        // Pin the dot to the outer edge
+        this.container.style.alignItems = isRight ? 'flex-end' : 'flex-start';
+        this.statusPill.style.flexDirection = isRight ? 'row-reverse' : 'row';
+        
+        // Adjust text margins based on direction
+        this.textWrapper.style.marginRight = (isRight && this.isExpanded) ? '10px' : '0';
+        this.textWrapper.style.marginLeft = (!isRight && this.isExpanded) ? '10px' : '0';
+    }
 
     public update(title: string, subtitle: string, state: 'idle' | 'active' | 'success' = 'idle') {
-        // High priority: success and active states enter the queue
         this.messageQueue.push({ title, subtitle, state });
         this.processQueue();
+    }
+
+    public triggerPayloadBeam(action: BeamAction = 'sync', iconSvg?: string) {
+        if (!this.container || !this.config.showParticle) return;
+
+        const ACTION_MAP: Record<BeamAction, { color: string, defaultIcon: string }> = {
+            add: { color: '#10b981', defaultIcon: `<path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v14m-7-7h14"/>` },
+            drop: { color: '#ef4444', defaultIcon: `<path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14"/>` },
+            extract: { color: '#3b82f6', defaultIcon: `<path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4m4-7l5-5l5 5m-5-5v12"/>` },
+            sync: { color: '#8b5cf6', defaultIcon: `<path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 0 0 4.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 0 1-15.357-2m15.357 2H15"/>` },
+            intercept: { color: '#f59e0b', defaultIcon: `<path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4m4-5l5 5l5-5m-5 5V3"/>` }
+        };
+
+        const config = ACTION_MAP[action];
+        const isOutbound = action !== 'intercept';
+
+        const particle = document.createElement('div');
+        particle.className = 'payload-particle';
+        particle.style.setProperty('--particle-color', config.color);
+        particle.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">${iconSvg || config.defaultIcon}</svg>`;
+
+        this.particleLayer.appendChild(particle);
+
+        // Viewport-relative coordinates (Zero-drift)
+        const dotRect = this.iconWrapper.getBoundingClientRect();
+        const startX = dotRect.left + dotRect.width / 2;
+        const startY = dotRect.top + dotRect.height / 2;
+
+        const isBottom = this.config.position.includes('bottom');
+        const screenCenterX = window.innerWidth / 2;
+        
+        // Target Point: Offscreen vertically
+        const yDirection = isBottom ? -1 : 1;
+        const endY = isBottom ? -100 : window.innerHeight + 100;
+        const spreadX = screenCenterX + (Math.random() - 0.5) * 400;
+
+        const tl = gsap.timeline({ onComplete: () => particle.remove() });
+
+        // Randomized Center Point to avoid collisions
+        const centerX = screenCenterX + (Math.random() - 0.5) * 200;
+
+        if (isOutbound) {
+            gsap.set(particle, { x: startX, y: startY, xPercent: -50, yPercent: -50, scale: 0.1, opacity: 0 });
+            this.pulsePill(config.color);
+
+            // Water Droplet Extraction (Randomized path to avoid collisions)
+            tl.to(particle, {
+                x: (startX + centerX) / 2,
+                y: startY,
+                scaleX: 1.5,
+                scaleY: 0.4,
+                opacity: 0.85,
+                duration: 0.35,
+                ease: 'power2.out'
+            });
+
+            // The Snap (Forms the physical packet at randomized center area)
+            tl.to(particle, {
+                x: centerX,
+                y: startY,
+                scaleX: 1,
+                scaleY: 1,
+                scale: 1,
+                opacity: 1,
+                duration: 0.4,
+                ease: PHYSICS.spring
+            }, "-=0.1");
+
+            // The Beam Phase
+            tl.to(particle, {
+                x: centerX + (Math.random() - 0.5) * 400,
+                y: endY,
+                rotation: (Math.random() - 0.5) * 180,
+                scale: 0.4,
+                opacity: 0,
+                duration: 0.6,
+                ease: 'power3.in'
+            }, "+=0.1");
+
+            return;
+        }
+
+        // Inbound Intercept Logic: Emerging from random points in the center area
+        const midX = screenCenterX + (Math.random() - 0.5) * (window.innerWidth * 0.6);
+        const midY = (window.innerHeight / 2) + (Math.random() - 0.5) * (window.innerHeight * 0.6);
+
+        gsap.set(particle, { 
+            x: midX, 
+            y: midY, 
+            xPercent: -50, 
+            yPercent: -50, 
+            scale: 0.1, 
+            opacity: 0,
+            rotation: (Math.random() - 0.5) * 180 
+        });
+
+        // Drop to randomized center area
+        tl.to(particle, {
+            x: centerX,
+            y: startY,
+            scale: 1,
+            opacity: 1,
+            rotation: 0,
+            duration: 0.5,
+            ease: 'power3.out'
+        });
+
+        // Stretch for entry
+        tl.to(particle, {
+            x: (startX + centerX) / 2,
+            y: startY,
+            scaleX: 1.5,
+            scaleY: 0.4,
+            duration: 0.3,
+            ease: 'power2.in'
+        });
+
+        // Absorb into Hub
+        tl.to(particle, {
+            x: startX,
+            y: startY,
+            scaleX: 0.1,
+            scaleY: 0.1,
+            opacity: 0,
+            duration: 0.2,
+            ease: 'power2.in',
+            onComplete: () => this.pulsePill(config.color)
+        });
+    }
+
+    private pulsePill(color: string) {
+        gsap.killTweensOf(this.statusPill, "boxShadow,borderColor,scale");
+        gsap.fromTo(this.statusPill, { scale: 1.05 }, { scale: 1, duration: 0.5, ease: PHYSICS.spring });
+        gsap.fromTo(this.statusPill,
+            { boxShadow: `0 0 40px ${color}, 0 0 0 2px ${color}`, borderColor: color },
+            { 
+                boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)', 
+                borderColor: 'rgba(255, 255, 255, 0.1)', 
+                duration: 1.2, 
+                ease: 'power2.out',
+                clearProps: 'boxShadow,borderColor'
+            }
+        );
     }
 
     private async processQueue() {
@@ -122,20 +284,14 @@ export class CompanionHub {
             const msg = this.messageQueue.shift()!;
             await this.displayMessage(msg);
             
-            // Hold success messages longer
             const holdTime = msg.state === 'success' ? 4000 : 3000;
             await new Promise(resolve => setTimeout(resolve, holdTime));
         }
 
         this.isProcessingQueue = false;
         
-        // Return to persistent state if active mode is still on
         if (this.currentState === 'active') {
-            this.displayMessage({ 
-                title: "Auto-Sync Active", 
-                subtitle: "Monitoring Portal...", 
-                state: 'active' 
-            });
+            this.displayMessage({ title: "Auto-Sync Active", subtitle: "Monitoring Portal...", state: 'active' });
         }
     }
 
@@ -153,7 +309,6 @@ export class CompanionHub {
             if (msg.subtitle) this.statusSubtitleEl.textContent = msg.subtitle;
         }
 
-        // Apply state styles
         this.statusPill.className = `status-pill status-${msg.state}`;
         this.swapIcon(this.ICONS[msg.state] || this.ICONS.idle);
 
@@ -188,13 +343,9 @@ export class CompanionHub {
         this.statusPill.classList.add('beaming');
         setTimeout(() => {
             this.statusPill.classList.remove('beaming');
-            if (this.currentState !== 'active') {
-                this.startAutoHideTimer();
-            }
+            if (this.currentState !== 'active') this.startAutoHideTimer();
         }, 4000);
     }
-
-    // --- Animation & State Logic ---
 
     private expand(forceWipe: boolean = false) {
         if (this.isExpanded && !forceWipe) {
@@ -205,28 +356,23 @@ export class CompanionHub {
         this.isExpanded = true;
         this.swapIcon(this.ICONS[this.currentState] || this.ICONS.idle);
 
+        const isRight = this.config.position.includes('right');
+        const marginProp = isRight ? 'marginRight' : 'marginLeft';
+
         gsap.killTweensOf(this.textWrapper);
-        
         gsap.fromTo(this.textWrapper, 
-            { 
-                width: 0, 
-                opacity: 0, 
-                marginLeft: 0,
-                clipPath: 'inset(0 100% 0 0)' 
-            },
+            { width: 0, opacity: 0, [marginProp]: 0, clipPath: 'inset(0 100% 0 0)' },
             {
                 width: 'auto',
                 opacity: 1,
-                marginLeft: 10,
+                [marginProp]: 10,
                 clipPath: 'inset(0 0% 0 0)',
                 duration: 0.6,
                 ease: forceWipe ? 'expo.out' : PHYSICS.bounce
             }
         );
 
-        if (this.currentState !== 'active') {
-            this.startAutoHideTimer();
-        }
+        if (this.currentState !== 'active') this.startAutoHideTimer();
     }
 
     private minimize(immediate: boolean = false) {
@@ -235,14 +381,17 @@ export class CompanionHub {
 
         this.swapIcon(this.ICONS.sentry);
 
+        const isRight = this.config.position.includes('right');
+        const marginProp = isRight ? 'marginRight' : 'marginLeft';
+
         gsap.killTweensOf(this.textWrapper);
         if (immediate) {
-            gsap.set(this.textWrapper, { width: 0, opacity: 0, marginLeft: 0, clipPath: 'inset(0 100% 0 0)' });
+            gsap.set(this.textWrapper, { width: 0, opacity: 0, [marginProp]: 0, clipPath: 'inset(0 100% 0 0)' });
         } else {
             gsap.to(this.textWrapper, {
                 width: 0,
                 opacity: 0,
-                marginLeft: 0,
+                [marginProp]: 0,
                 clipPath: 'inset(0 100% 0 0)',
                 duration: 0.4,
                 ease: PHYSICS.snap
@@ -266,24 +415,21 @@ export class CompanionHub {
         this.autoHideTimer = setTimeout(() => this.minimize(), 5000);
     }
 
-    // --- Styles ---
-
     private injectStyles() {
         const style = document.createElement('style');
         style.textContent = `
             #companion-hub-container {
                 position: fixed;
-                bottom: 24px;
-                left: 24px;
                 z-index: 999999;
-                pointer-events: auto;
+                pointer-events: none;
                 font-family: 'Outfit', system-ui, sans-serif;
                 display: flex;
                 flex-direction: column;
-                align-items: flex-start;
+                /* Dynamic flex alignment handled by config */
             }
 
             .status-pill {
+                pointer-events: auto;
                 box-sizing: border-box;
                 display: inline-flex;
                 align-items: center;
@@ -299,6 +445,7 @@ export class CompanionHub {
                 user-select: none;
                 overflow: hidden;
                 position: relative;
+                z-index: 2;
             }
 
             .icon-wrapper {
@@ -361,16 +508,43 @@ export class CompanionHub {
                 left: -100%;
                 width: 50%;
                 height: 100%;
-                background: linear-gradient(
-                    90deg, 
-                    transparent, 
-                    rgba(59, 130, 246, 0.15), 
-                    transparent
-                );
+                background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.15), transparent);
                 transform: skewX(-20deg);
                 animation: island-scan 2s cubic-bezier(0.4, 0, 0.2, 1) infinite;
                 z-index: 1;
                 pointer-events: none;
+            }
+
+            #particle-layer {
+                position: fixed;
+                inset: 0;
+                z-index: 999998;
+                pointer-events: none;
+            }
+
+            .payload-particle {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 36px;
+                height: 36px;
+                border-radius: 50%;
+                background: rgba(15, 23, 42, 0.98);
+                border: 2px solid var(--particle-color);
+                color: var(--particle-color);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                pointer-events: none;
+                z-index: 999999; 
+                box-shadow: 0 0 20px var(--particle-color), inset 0 0 10px rgba(0,0,0,0.5);
+                backdrop-filter: blur(8px);
+            }
+
+            .payload-particle svg {
+                width: 18px;
+                height: 18px;
+                stroke-width: 2.5px;
             }
 
             @keyframes island-scan {
