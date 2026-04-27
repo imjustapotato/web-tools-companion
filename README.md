@@ -9,10 +9,15 @@ This extension is a companion tool for my [Web Tools](https://tools.kendavila.me
 
 ### Schedule Visualizer & Plotter
 - [x] Auto Plotting (FEU OSES) 
-- [ ] Extract from SAF
+- [x] Extract from SAF
 
 ### Pre-Requisite Tree
-- [ ] Extract Curriculum (Tree Parser)
+- [x] Extract Curriculum (Tree Parser)
+
+### Companion Hub
+- [x] Particle Beam Engine
+- [x] Snarky Guidance System
+- [x] Who's a Good Boy/Girl? (The Reward System)
 
 ### Browser Support
 - [x] Chromium-based Browsers (Google Chrome, Microsoft Edge, Brave, Opera, Vivaldi, etc.)
