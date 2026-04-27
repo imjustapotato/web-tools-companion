@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Tools Companion</title>
+    <link rel="stylesheet" href="./popup.css">
+</head>
+
+<body>
+
+    <!-- Header Section -->
+    <header id="header">
+        <div class="header-icon-container">
+            <img src="./logo128.png" alt="Web Tools Logo" class="header-icon">
+        </div>
+        <div class="header-content">
+            <h1 class="header-title">Web Tools Companion</h1>
+            <p class="header-subtitle">Developed by Kenn</p>
+        </div>
+        <button id="btn-reset-data" class="icon-btn" title="Reset All Extension Data">
+            <iconify-icon icon="lucide:refresh-ccw" width="18"></iconify-icon>
+        </button>
+    </header>
+
+    <!-- Primary Action -->
+    <div class="mb-4">
+        <button id="btn-open-tools" class="primary-action-btn">
+            <iconify-icon icon="lucide:external-link" width="18"></iconify-icon>
+            Open Schedule Visualizer
+        </button>
+    </div>
+
+    <!-- Tool Ecosystem -->
+    <div class="tool-list">
+        
+        <!-- Tool 1: Schedule Mapping -->
+        <details class="tool-group" open>
+            <summary class="tool-group-summary">
+                <div class="summary-title-container">
+                    <iconify-icon icon="lucide:calendar-days" class="summary-icon"></iconify-icon>
+                    <span>Schedule Plotter</span>
+                </div>
+                <div style="display: flex; align-items: center;">
+                    <div id="data-status-badge" class="status-badge hidden" style="margin-right: 0.75rem;">
+                        <span class="badge-dot"></span>
+                        <span class="badge-text">Saved</span>
+                    </div>
+                    <iconify-icon icon="lucide:chevron-down" class="summary-chevron"></iconify-icon>
+                </div>
+            </summary>
+
+            <div class="tool-group-content">
+                <div class="tool-group-inner">
+                    
+                    <button id="btn-auto-sched" class="tool-btn active-btn">
+                        <div class="tool-btn-left">
+                            <iconify-icon icon="lucide:zap" class="tool-btn-icon zap-icon"></iconify-icon>
+                            <span class="tool-btn-text">Auto-Sync (FEU OSES)</span>
+                        </div>
+                        <iconify-icon id="auto-sched-icon" icon="ic:baseline-auto-awesome" class="auto-awesome-icon"></iconify-icon>
+                    </button>
+                    
+                    <!-- Smart Status Note -->
+                    <div id="mouse-tooltip" class="mouse-tooltip">
+                        <div id="tooltip-content">
+                            Monitoring for schedule changes. Add or remove subjects to sync automatically!
+                        </div>
+                        <div id="tooltip-clear-wrap" class="tooltip-clear-wrap hidden">
+                            <iconify-icon icon="lucide:info" style="color: var(--accent-primary); font-size: 0.9rem;"></iconify-icon>
+                            <span class="muted-text">Stored data will auto-populate your view.</span>
+                            <button id="btn-clear-inline" class="text-link-btn">Clear Data</button>
+                        </div>
+                    </div>
+
+                    <button id="btn-extract-saf" class="tool-btn">
+                        <div class="tool-btn-left">
+                            <iconify-icon icon="lucide:file-text" class="tool-btn-icon"></iconify-icon>
+                            <span>Extract from SAF</span>
+                        </div>
+                        <iconify-icon icon="lucide:download" class="tool-btn-icon"></iconify-icon>
+                    </button>
+
+                </div>
+            </div>
+        </details>
+
+        <!-- Tool 2: Pre-Requisite Mapping -->
+        <div class="tool-group">
+            <div class="tool-group-summary static-summary">
+                <div class="tool-group-title">
+                    <iconify-icon icon="lucide:network" class="tool-group-icon"></iconify-icon>
+                    <span>Pre-Requisite Mapping</span>
+                </div>
+            </div>
+
+            <div class="tool-group-content">
+                <div class="tool-group-inner">
+                    <button id="btn-extract-prereqs" class="tool-btn">
+                        <div class="tool-btn-left">
+                            <iconify-icon icon="lucide:git-merge" class="tool-btn-icon"></iconify-icon>
+                            <span>Extract Pre-Requisites</span>
+                        </div>
+                        <iconify-icon icon="lucide:download" class="tool-btn-icon"></iconify-icon>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tool 3: Companion Hub Settings -->
+        <details class="tool-group">
+            <summary class="tool-group-summary">
+                <div class="summary-title-container">
+                    <iconify-icon icon="lucide:settings-2" class="summary-icon"></iconify-icon>
+                    <span>Companion Hub Settings</span>
+                </div>
+                <iconify-icon icon="lucide:chevron-down" class="summary-chevron"></iconify-icon>
+            </summary>
+
+            <div class="tool-group-content">
+                <div class="tool-group-inner">
+                    
+                    <div class="settings-row">
+                        <div class="settings-label">
+                            <span class="settings-title">Show Hub</span>
+                            <span class="settings-desc">Enable Dynamic Island on portals</span>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="setting-show-hub" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="settings-row" id="row-show-particles">
+                        <div class="settings-label">
+                            <span class="settings-title">Visual Particles</span>
+                            <span class="settings-desc">Show data beam animations</span>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="setting-show-particles" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <!-- <div class="settings-row">
+                        <div class="settings-label">
+                            <span class="settings-title">Portal Guide</span>
+                            <span class="settings-desc">Need to Handhold you?</span>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="setting-show-guide" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div> -->
+
+                    <div class="settings-row">
+                        <div class="settings-label">
+                            <span class="settings-title">Auto Position</span>
+                            <span class="settings-desc">Adapt to screen size</span>
+                        </div>
+                        <label class="switch">
+                            <input type="checkbox" id="setting-auto-position" checked>
+                            <span class="slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="settings-row" id="row-preferred-vertical">
+                        <div class="settings-label">
+                            <span class="settings-title">Preferred Vertical</span>
+                            <span class="settings-desc">Top or Bottom docking</span>
+                        </div>
+                        <select id="setting-preferred-vertical" class="settings-select">
+                            <option value="bottom">Bottom</option>
+                            <option value="top">Top</option>
+                        </select>
+                    </div>
+
+                    <div class="settings-row" id="row-hub-position">
+                        <div class="settings-label">
+                            <span class="settings-title">Hub Position</span>
+                            <span class="settings-desc">Screen corner for the hub</span>
+                        </div>
+                        <select id="setting-hub-position" class="settings-select">
+                            <option value="bottom-left">Bottom Left</option>
+                            <option value="bottom-right">Bottom Right</option>
+                            <option value="top-left">Top Left</option>
+                            <option value="top-right">Top Right</option>
+                        </select>
+                    </div>
+
+
+
+                </div>
+            </div>
+        </details>
+
+        <!-- Developer / Activity Console -->
+        <details class="tool-group">
+            <summary class="tool-group-summary">
+                <div class="summary-title-container">
+                    <iconify-icon icon="lucide:terminal" class="summary-icon"></iconify-icon>
+                    <span>Activity Log</span>
+                </div>
+                <iconify-icon icon="lucide:chevron-down" class="summary-chevron"></iconify-icon>
+            </summary>
+
+            <div class="tool-group-content">
+                <div class="tool-group-inner">
+                    <div id="console-output" class="console-window">
+                        <div class="console-line">
+                            <span class="console-time">[System]</span>
+                            <span class="log-info">Console initialized. Awaiting logs...</span>
+                        </div>
+                    </div>
+                    <div class="console-actions">
+                        <button id="btn-clear-console" class="console-action-btn">Clear Log</button>
+                    </div>
+                </div>
+            </div>
+        </details>
+
+    </div>
+
+    <!-- Interactive Tooltip for Listen State -->
+    <div id="mouse-tooltip" class="mouse-tooltip">
+        Monitoring for schedule changes. Add or remove subjects to sync automatically to the Web Tools! :>
+    </div>
+
+    <!-- Dynamic Custom Modal -->
+    <div id="confirm-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-card">
+            <div class="modal-header">
+                <iconify-icon id="modal-icon" icon="lucide:alert-triangle" class="modal-icon"></iconify-icon>
+                <h3 id="modal-title" class="modal-title">Clear Data?</h3>
+            </div>
+            <p id="modal-message" class="modal-message">
+                Your stored schedule will be cleared. The Web Tools view will be empty on the next refresh.
+            </p>
+            <div class="modal-actions" id="modal-actions">
+                <button id="modal-cancel" class="modal-btn btn-secondary">Cancel</button>
+                <button id="modal-confirm" class="modal-btn btn-danger">Clear All</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="./popup.ts"></script>
+</body>
+
+</html>

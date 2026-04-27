@@ -1,0 +1,28 @@
+{
+  "name": "web-tools-helper",
+  "version": "1.0.0",
+  "description": "A companion extension for my Web Tools website.",
+  "main": "index.js",
+  "scripts": {
+    "dev": "node build.mjs",
+    "build": "node build.mjs",
+    "build:store": "node build.mjs --package",
+    "build:obfuscate": "node build.mjs --package --obfuscate",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@types/chrome": "^0.1.40",
+    "archiver": "^7.0.1",
+    "esbuild": "^0.28.0",
+    "terser": "^5.46.1",
+    "vite": "^8.0.8"
+  },
+  "dependencies": {
+    "gsap": "^3.15.0",
+    "iconify-icon": "^3.0.2"
+  }
+}

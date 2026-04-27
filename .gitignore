@@ -13,3 +13,7 @@ pnpm-debug.log*
 dist-obfuscate/
 release/
 release-obfuscate/
+scratch/
+dist-obfuscate/
+release/
+release-obfuscate/
