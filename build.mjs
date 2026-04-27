@@ -117,29 +117,25 @@ async function buildExtension() {
 
   // Copy extension assets with production sanitization
   if (isPackage) {
+    // 1. Sanitize manifest.json
     const manifest = JSON.parse(fs.readFileSync('manifest.json', 'utf8'));
     
-    // Helper to remove localhost from match arrays
     const sanitizeMatches = (matches) => {
         if (!Array.isArray(matches)) return matches;
         return matches.filter(match => !match.includes('localhost'));
     };
 
-    // Sanitize Host Permissions
     if (manifest.host_permissions) {
         manifest.host_permissions = sanitizeMatches(manifest.host_permissions);
     }
 
-    // Sanitize Content Scripts
     if (manifest.content_scripts) {
         manifest.content_scripts.forEach(script => {
             script.matches = sanitizeMatches(script.matches);
         });
-        // Remove empty content script entries if localhost was the only match
         manifest.content_scripts = manifest.content_scripts.filter(script => script.matches.length > 0);
     }
 
-    // Sanitize Web Accessible Resources
     if (manifest.web_accessible_resources) {
         manifest.web_accessible_resources.forEach(res => {
             res.matches = sanitizeMatches(res.matches);
@@ -148,6 +144,32 @@ async function buildExtension() {
 
     fs.writeFileSync(nodePath.resolve(outDir, 'manifest.json'), JSON.stringify(manifest, null, 2));
     console.log(`[Build] manifest.json sanitized (localhost removed) for production.`);
+
+    // 2. Sanitize compiled JavaScript files
+    const jsFiles = fs.readdirSync(outDir).filter(file => file.endsWith('.js'));
+    for (const file of jsFiles) {
+        const filePath = nodePath.resolve(outDir, file);
+        let content = fs.readFileSync(filePath, 'utf8');
+        
+        // Remove localhost and 127.0.0.1 references from the code
+        const originalLength = content.length;
+        
+        // Regex to remove localhost patterns (e.g. "*://localhost/*", 'localhost:8000', etc.)
+        // We target common patterns found in the manifest and scripts
+        content = content.replace(/["']\*?:\/\/localhost(\/|\:\*\/)?\*?["'],?/g, '');
+        content = content.replace(/["']localhost:\d+["'],?/g, '');
+        content = content.replace(/\|\| host === ['"]localhost['"] \|\| host === ['"]127\.0\.0\.1['"]/g, '');
+        
+        // Clean up any double commas introduced by removal in arrays
+        content = content.replace(/,(\s*),/g, ',');
+        content = content.replace(/\[\s*,/g, '[');
+        content = content.replace(/,\s*\]/g, ']');
+
+        if (content.length !== originalLength) {
+            fs.writeFileSync(filePath, content);
+            console.log(`[Build] Sanitized ${file}: Localhost references removed.`);
+        }
+    }
   } else {
     fs.copyFileSync('manifest.json', nodePath.resolve(outDir, 'manifest.json'));
   }
