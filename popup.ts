@@ -268,31 +268,47 @@ const injectCurriculumScraperScript = (tabId: number): Promise<boolean> => {
 
 /** 
  * Forces a synchronization event in the Web Tools tab.
- * Note: 'Active Poking' bypasses Chrome's background tab throttling.
+ * Implements the Probe -> Handoff -> Reload sequence to battle Chrome Memory Saver natively.
  */
 const forceSyncWebToolsTabs = (payload?: any, type: 'SAF' | 'SAF_EXTRACT' | 'CURRICULUM' = 'SAF') => {
     chrome.tabs.query({}, (tabs) => {
         const matchingTabs = tabs.filter(tab => DOMAINS.TOOLS.some(url => tab.url?.includes(url)));
+        const isSaf = type === 'SAF' || type === 'SAF_EXTRACT';
+        const targetPath = isSaf ? 'schedule-visualizer/' : 'portal-parser/';
 
         if (matchingTabs.length > 0) {
-            const targetTab = matchingTabs[0];
+            let targetTab = matchingTabs.find(t => t.url?.includes(targetPath)) || matchingTabs[0];
+
             if (targetTab.id) {
-                chrome.tabs.update(targetTab.id, { active: true });
+                // If wrong tool, redirect first
+                if (!targetTab.url?.includes(targetPath)) {
+                    chrome.tabs.update(targetTab.id, { url: `${APP_URLS.VISUALIZER}${targetPath}`, active: true });
+                } else {
+                    // It's the right tool. Attempt PROBE via messaging
+                    chrome.tabs.sendMessage(targetTab.id, { 
+                        type: 'SYNC_DATA',
+                        dataType: type,
+                        payload: payload 
+                    }, (response) => {
+                        // If we get an error (port closed) or the probe timed out (success: false)
+                        if (chrome.runtime.lastError || !response || !response.success) {
+                            beamLog('Probe failed. Triggering tab wake-up reload...', 'warn');
+                            chrome.tabs.reload(targetTab.id!);
+                        }
+                    });
+                    
+                    // Always make the tab active
+                    chrome.tabs.update(targetTab.id, { active: true });
+                }
                 
-                // Seamless message for all tools to avoid state/parsing interruptions
-                chrome.tabs.sendMessage(targetTab.id, { 
-                    type: 'SYNC_DATA',
-                    dataType: type,
-                    payload: payload 
-                }).catch(() => {});
-                
-                // If the tab is in a different window, we might need to focus that window too
-                if (targetTab.windowId) chrome.windows.update(targetTab.windowId, { focused: true });
+                // Focus the window containing the tab
+                if (targetTab.windowId) {
+                    chrome.windows.update(targetTab.windowId, { focused: true });
+                }
             }
         } else {
-            const isSaf = type === 'SAF' || type === 'SAF_EXTRACT';
-            const path = isSaf ? 'schedule-visualizer/' : 'portal-parser/';
-            chrome.tabs.create({ url: `${APP_URLS.VISUALIZER}${path}` });
+            // No tool tab open at all
+            chrome.tabs.create({ url: `${APP_URLS.VISUALIZER}${targetPath}` });
         }
     });
 };
@@ -401,8 +417,24 @@ const initPrereqMapping = () => {
     const btnExtractPrereqs = document.getElementById('btn-extract-prereqs') as HTMLButtonElement;
 
     const handleExtraction = async (btn: HTMLButtonElement) => {
-        const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true });
-        if (!activeTab?.id) return;
+        // 1. Find the target tab (either active or any portal tab)
+        const tabs = await chrome.tabs.query({});
+        const portalTab = tabs.find(tab => DOMAINS.PORTALS.some(d => tab.url?.includes(d)));
+        
+        if (!portalTab) {
+            beamLog("Curriculum portal not found. Opening...", "warn");
+            chrome.tabs.create({ url: APP_URLS.REGISTRATION });
+            return;
+        }
+
+        // 2. Wake up the portal tab and bring it to the front
+        if (portalTab.id) {
+            chrome.tabs.update(portalTab.id, { active: true });
+            if (portalTab.windowId) chrome.windows.update(portalTab.windowId, { focused: true });
+        }
+
+        const targetTabId = portalTab.id;
+        if (!targetTabId) return;
 
         // UI Loading State
         const originalHtml = btn.innerHTML;
@@ -412,14 +444,14 @@ const initPrereqMapping = () => {
 
         try {
             // Attempt 1: Message directly
-            let response = await sendMessageToTab(activeTab.id, { action: 'EXTRACT_CURRICULUM_DATA' });
+            let response = await sendMessageToTab(targetTabId, { action: 'EXTRACT_CURRICULUM_DATA' });
 
             // Attempt 2: Inject and retry if script is missing
             if (!response) {
-                const isInjected = await injectCurriculumScraperScript(activeTab.id);
+                const isInjected = await injectCurriculumScraperScript(targetTabId);
                 if (!isInjected) throw new Error("Could not access portal. Check extension permissions.");
                 
-                response = await sendMessageToTab(activeTab.id, { action: 'EXTRACT_CURRICULUM_DATA' });
+                response = await sendMessageToTab(targetTabId, { action: 'EXTRACT_CURRICULUM_DATA' });
             }
 
             if (response?.success) {
@@ -606,6 +638,54 @@ const initHubSettings = () => {
     selectPreferredVertical.addEventListener('change', updateConfig);
 };
 
+/* CHANGELOG MANAGEMENT */
+/**
+ * Fetches the local changelog.json and renders it into the UI.
+ * This keeps the popup lightweight while maintaining a detailed history.
+ */
+const initChangelog = async () => {
+    const changelogContainer = document.getElementById('changelog-content');
+    if (!changelogContainer) return;
+
+    try {
+        const response = await fetch('./changelog.json');
+        if (!response.ok) throw new Error("Changelog not found");
+        
+        const data = await response.json();
+
+        if (Array.isArray(data)) {
+            changelogContainer.innerHTML = ''; // Clear loading state
+            
+            data.forEach((entry: { version: string; date: string; changes: string[] }) => {
+                const versionEntry = document.createElement('div');
+                versionEntry.className = 'version-entry';
+
+                const header = document.createElement('div');
+                header.className = 'version-header';
+                header.innerHTML = `
+                    <span class="version-number">v${entry.version}</span>
+                    <span class="version-date">${entry.date}</span>
+                `;
+
+                const changesList = document.createElement('ul');
+                changesList.className = 'version-changes';
+                entry.changes.forEach(change => {
+                    const li = document.createElement('li');
+                    li.className = 'change-item';
+                    li.textContent = change;
+                    changesList.appendChild(li);
+                });
+
+                versionEntry.appendChild(header);
+                versionEntry.appendChild(changesList);
+                changelogContainer.appendChild(versionEntry);
+            });
+        }
+    } catch (error) {
+        changelogContainer.innerHTML = '<div class="muted-text" style="padding: 0.5rem;">Failed to load version history.</div>';
+    }
+};
+
 document.addEventListener('DOMContentLoaded', () => {
     initNavigation();
     updateDataStatusVisibility();
@@ -616,5 +696,6 @@ document.addEventListener('DOMContentLoaded', () => {
     initAccordions();
     initHubSettings();
     initActivityConsole();
+    initChangelog();
     initGlobalPhysics();
 });

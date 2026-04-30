@@ -114,14 +114,18 @@ if (!(window as any).__SAF_SCRAPER_LOADED__) {
             beamLog("Extraction failed: Not on SAF page.", 'error');
             
             // Persist guide state so the portal-guide can pick it up after navigation
-            chrome.storage.local.set({
-                activeGuide: {
-                    type: 'wrong_page',
-                    selector: 'a[href*="/student/saf"]',
-                    message: "Hey, it seems you aren't on the SAF page. Navigate first to Schedule & Assessment.",
-                    count: 1,
-                    earnedReward: false
-                }
+            // Retrieve current state to preserve count progression if spam-clicked
+            chrome.storage.local.get(['activeGuide'], (result) => {
+                const currentCount = result.activeGuide?.count || 0;
+                chrome.storage.local.set({
+                    activeGuide: {
+                        type: 'wrong_page',
+                        selector: 'a[href*="/student/saf"]',
+                        message: "Hey, it seems you aren't on the SAF page. Navigate first to Schedule & Assessment.",
+                        count: currentCount + 1,
+                        earnedReward: result.activeGuide?.earnedReward || false
+                    }
+                });
             });
 
             // Trigger Hub feedback for the error
@@ -192,12 +196,15 @@ if (!(window as any).__SAF_SCRAPER_LOADED__) {
             // No data rows at all — guide the user to select a term and submit
             beamLog("Extraction failed: Could not locate SAF data", 'error');
             
-            chrome.storage.local.set({
-                activeGuide: {
-                    type: 'missing_data',
-                    count: 1,
-                    earnedReward: false
-                }
+            chrome.storage.local.get(['activeGuide'], (result) => {
+                const currentCount = result.activeGuide?.count || 0;
+                chrome.storage.local.set({
+                    activeGuide: {
+                        type: 'missing_data',
+                        count: currentCount + 1,
+                        earnedReward: result.activeGuide?.earnedReward || false
+                    }
+                });
             });
 
             window.dispatchEvent(new CustomEvent('WEB_TOOLS_HUB_ACTION', {

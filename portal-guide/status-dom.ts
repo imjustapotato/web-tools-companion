@@ -40,6 +40,7 @@ export class CompanionHub {
     private textWrapper!: HTMLDivElement;
     private statusTitleEl!: HTMLDivElement;
     private statusSubtitleEl!: HTMLDivElement;
+    private particleLayer!: HTMLDivElement;
 
     private isExpanded: boolean = false;
     private autoHideTimer: ReturnType<typeof setTimeout> | null = null;

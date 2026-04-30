@@ -173,6 +173,12 @@ export const AnimEngine = {
      */
     recalculateHeight: (container: HTMLElement | null) => {
         if (!container || !AnimEngine.hasGsap()) return;
+        
+        // Prevent GSAP fighting against collapsing animations
+        if (container.classList.contains('hidden') || container.style.height === '0px' || container.style.height === '0') {
+            return;
+        }
+
         gsap.to(container, { height: 'auto', duration: 0.3, ease: 'power2.out' });
     }
 };

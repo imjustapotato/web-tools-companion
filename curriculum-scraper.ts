@@ -14,13 +14,13 @@ if (!(window as any).__CURRICULUM_SCRAPER_LOADED__) {
                 
                 // Get existing state or initialize new one
                 chrome.storage.local.get(['activeGuide'], (result) => {
-                    const currentCount = result.activeGuide?.type === 'wrong_page_curriculum' ? result.activeGuide.count + 1 : 1;
+                    const currentCount = result.activeGuide?.count || 0;
                     
                     chrome.storage.local.set({
                         activeGuide: {
                             type: 'wrong_page_curriculum',
-                            count: currentCount,
-                            earnedReward: currentCount > 1
+                            count: currentCount + 1,
+                            earnedReward: result.activeGuide?.earnedReward || false
                         }
                     });
                 });
@@ -55,7 +55,7 @@ if (!(window as any).__CURRICULUM_SCRAPER_LOADED__) {
                 detail: {
                     action: 'UPDATE_HUB_STATUS',
                     title: 'Curriculum Extracted',
-                    subtitle: 'Beamed to Visualizer',
+                    subtitle: 'Beamed to Web-Tools',
                     state: 'success'
                 }
             }));

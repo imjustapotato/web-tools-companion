@@ -10,6 +10,9 @@ const PORTAL_URLS = [
     "*://localhost/*"
 ];
 
+let isProcessingLogQueue = false;
+let logQueue: {message: string, level: string, timestamp: string}[] = [];
+
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === 'GET_HEARTBEAT_DATA') {
         chrome.tabs.query({ url: PORTAL_URLS }, (tabs) => {
@@ -23,16 +26,14 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
 
     if (request.action === 'BEAM_LOG' && request.payload) {
-        // 1. Persist logs for the Activity Log
-        chrome.storage.local.get(['appLogs'], (result) => {
-            const logs = result.appLogs || [];
-            const newLog = {
-                ...request.payload,
-                timestamp: new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
-            };
-            const updatedLogs = [newLog, ...logs].slice(0, 50);
-            chrome.storage.local.set({ appLogs: updatedLogs });
-        });
+        // 1. Enqueue and process sequentially to prevent race condition data loss
+        const newLog = {
+            ...request.payload,
+            timestamp: new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })
+        };
+        
+        logQueue.push(newLog);
+        processLogQueue();
 
         // 2. Relay log to the Companion Hub if the sender is a portal tab
         if (sender.tab && sender.tab.id) {
@@ -44,6 +45,29 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         }
     }
 });
+
+function processLogQueue() {
+    if (isProcessingLogQueue || logQueue.length === 0) return;
+    isProcessingLogQueue = true;
+
+    chrome.storage.local.get(['appLogs'], (result) => {
+        const logs = result.appLogs || [];
+        // Extract all current items in queue
+        const newLogsToProcess = [...logQueue];
+        logQueue = []; 
+        
+        // Reverse array so latest comes first when prepending
+        const updatedLogs = [...newLogsToProcess.reverse(), ...logs].slice(0, 50);
+        
+        chrome.storage.local.set({ appLogs: updatedLogs }, () => {
+            isProcessingLogQueue = false;
+            // Process any items added while we were saving
+            if (logQueue.length > 0) {
+                processLogQueue();
+            }
+        });
+    });
+}
 
 /* Broadcast status to web tools. */
 function broadcastStatus() {
@@ -79,13 +103,51 @@ function broadcastStatus() {
     });
 }
 
+/* Bulletproof Auto-Sync Handoff with Probe */
+function pushAutoSyncToWebTools(scheduleData: any) {
+    chrome.tabs.query({
+        url: [
+            "*://localhost/*",
+            "*://tools.kendavila.me/*",
+            "*://web-tools-teal.vercel.app/*"
+        ]
+    }, (webToolTabs) => {
+        const targetPath = 'schedule-visualizer';
+        const targetTabs = webToolTabs.filter(t => t.url?.includes(targetPath));
+
+        targetTabs.forEach(tab => {
+            if (tab.id) {
+                // Attempt probe message first
+                chrome.tabs.sendMessage(tab.id, {
+                    type: 'SYNC_DATA',
+                    dataType: 'SAF',
+                    payload: scheduleData
+                }, (response) => {
+                    // Fail-safe: Port closed (suspended) OR Probe timeout
+                    if (chrome.runtime.lastError || !response || !response.success) {
+                        // Silent background reload to wake it up.
+                        // bridge.ts will pull the data automatically on load.
+                        chrome.tabs.reload(tab.id!);
+                    }
+                });
+            }
+        });
+    });
+}
+
 /* Lifecycle observers. */
 chrome.tabs.onUpdated.addListener(broadcastStatus);
 chrome.tabs.onRemoved.addListener(broadcastStatus);
 
 /* Setting observers. */
 chrome.storage.onChanged.addListener((changes, namespace) => {
-    if (namespace === 'local' && changes.autoSchedEnabled) {
+    if (namespace !== 'local') return;
+    
+    if (changes.autoSchedEnabled) {
         broadcastStatus();
+    }
+
+    if (changes.latestSchedule) {
+        pushAutoSyncToWebTools(changes.latestSchedule.newValue);
     }
 });

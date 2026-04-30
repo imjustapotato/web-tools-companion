@@ -1,6 +1,6 @@
 {
   "name": "web-tools-helper",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A companion extension for my Web Tools website.",
   "main": "index.js",
   "scripts": {
