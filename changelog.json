@@ -1,0 +1,22 @@
+[
+    {
+        "version": "1.0.1",
+        "date": "2026-04-30",
+        "changes": [
+            "Overhauled the Extraction and Data Handoff logic to improve reliability when using the webtools and companion.",
+            "Improved tab unthrottling delays for better reliability in restricted environments.",
+            "Added Whats New section to the popup UI.",
+            "Implemented blur and transparent data handoff information through GUI for better user experience."
+        ]
+    },
+    {
+        "version": "1.0.0",
+        "date": "2026-04-28",
+        "changes": [
+            "Official launch of the Web Tools Companion.",
+            "Support for FEU Tech, Alabang, and Diliman portals.",
+            "Real-time schedule synchronization and visualizer integration.",
+            "Smart Sentry mode with Dynamic Island-inspired UI."
+        ]
+    }
+]

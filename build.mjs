@@ -158,7 +158,7 @@ async function buildExtension() {
         // We target common patterns found in the manifest and scripts
         content = content.replace(/["']\*?:\/\/localhost(\/|\:\*\/)?\*?["'],?/g, '');
         content = content.replace(/["']localhost:\d+["'],?/g, '');
-        content = content.replace(/\|\| host === ['"]localhost['"] \|\| host === ['"]127\.0\.0\.1['"]/g, '');
+        content = content.replace(/\|\|\s*host\s*===\s*['"]localhost['"]\s*\|\|\s*host\s*===\s*['"]127\.0\.0\.1['"]/g, '');
         
         // Clean up any double commas introduced by removal in arrays
         content = content.replace(/,(\s*),/g, ',');
@@ -175,6 +175,7 @@ async function buildExtension() {
   }
 
   fs.copyFileSync('popup.css', nodePath.resolve(outDir, 'popup.css'));
+  fs.copyFileSync('changelog.json', nodePath.resolve(outDir, 'changelog.json'));
   fs.copyFileSync('src/assets/logo128.png', nodePath.resolve(outDir, 'logo128.png'));
   console.log(`[Build] Static assets copied to ${outDir}/`);
 

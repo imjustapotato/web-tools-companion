@@ -31,19 +31,42 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 
     if (message.type === 'SYNC_DATA') {
-        if (message.payload) {
-            // Hand-delivery: Push directly to app without waiting for storage
-            window.postMessage({
-                type: 'WEB_TOOLS_EXTENSION_SYNC',
-                dataType: message.dataType || 'SAF', 
-                payload: message.payload
-            }, '*');
-            beamLog(`Direct ${message.dataType || 'SAF'} sync delivered`, 'success');
-        } else {
-            syncAllDataToApp();
-        }
-        sendResponse({ success: true });
-        return true;
+        // Step 1: Execute PROBE to see if the web app is awake and has network-bridge.js
+        window.postMessage({ type: 'WEB_TOOLS_PROBE' }, '*');
+        
+        // Step 2: Set up a one-time listener for the PROBE_ACK
+        const ackListener = (event: MessageEvent) => {
+            if (event.source !== window || event.data.type !== 'WEB_TOOLS_PROBE_ACK') return;
+            
+            // Web app is awake! Proceed with payload delivery
+            window.removeEventListener('message', ackListener);
+            if (probeTimeout) clearTimeout(probeTimeout);
+
+            if (message.payload) {
+                // Hand-delivery
+                window.postMessage({
+                    type: 'WEB_TOOLS_EXTENSION_SYNC',
+                    dataType: message.dataType || 'SAF', 
+                    payload: message.payload
+                }, '*');
+                beamLog(`Direct ${message.dataType || 'SAF'} sync delivered`, 'success');
+            } else {
+                syncAllDataToApp();
+            }
+            sendResponse({ success: true });
+        };
+
+        window.addEventListener('message', ackListener);
+
+        // Step 3: Wait. If no ACK after 500ms, the tab is likely throttled/asleep.
+        // Return false so popup.ts / background.ts knows to trigger a full tab reload.
+        const probeTimeout = setTimeout(() => {
+            window.removeEventListener('message', ackListener);
+            console.log('[Bridge] PROBE timeout. Tab might be asleep.');
+            sendResponse({ success: false, reason: 'timeout' });
+        }, 500);
+
+        return true; // Keep message channel open for async sendResponse
     }
     return false;
 });
