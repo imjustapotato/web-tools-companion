@@ -1,3 +1,11 @@
+﻿/*
+ * Copyright (C) 2026 Kenneth Westhle Davila (kendavila.me)
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License.
+ */
+
 // Extract raw HTML from #currTable for the Pre-requisite Mapping tool.
 
 if (!(window as any).__CURRICULUM_SCRAPER_LOADED__) {
@@ -70,3 +78,4 @@ if (!(window as any).__CURRICULUM_SCRAPER_LOADED__) {
         }
     });
 }
+

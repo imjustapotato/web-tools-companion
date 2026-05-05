@@ -1,3 +1,11 @@
+﻿/*
+ * Copyright (C) 2026 Kenneth Westhle Davila (kendavila.me)
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License.
+ */
+
 // Shared logging utility to beam messages to the Popup's Activity Console
 export type LogLevel = 'info' | 'warn' | 'error' | 'success';
 

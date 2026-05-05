@@ -1,10 +1,8 @@
-/**
+﻿/**
  * Logger Hub (Shadow DOM Component)
- * Renders a toast notification stack inside the Companion Hub's Shadow DOM.
- * Duplicate messages aggregate into a single toast with a counter badge
- * instead of spawning redundant notifications.
  */
 import { gsap } from 'gsap';
+import { setSafeHTML } from '../src/utils/dom';
 
 interface ActiveToast {
     element: HTMLDivElement;
@@ -54,13 +52,13 @@ export class LoggerHub {
         
         const iconHtml = (this.ICONS as any)[type] || this.ICONS.info;
         
-        toast.innerHTML = `
+        setSafeHTML(toast, `
             <span class="log-icon">${iconHtml}</span>
             <div class="log-content">
                 <span class="log-message">${message}</span>
                 <span class="log-count"></span>
             </div>
-        `;
+        `);
 
         this.container.appendChild(toast);
 

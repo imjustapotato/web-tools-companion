@@ -1,3 +1,11 @@
+/*
+ * Copyright (C) 2026 Kenneth Westhle Davila (kendavila.me)
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License.
+ */
+
 // Injected into the portal to manually extract the SAF table DOM
 import { beamLog } from './logger';
 

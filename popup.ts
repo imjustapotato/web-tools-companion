@@ -1,4 +1,12 @@
+/*
+ * Copyright (C) 2026 Kenneth Westhle Davila (kendavila.me)
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License.
+ */
 import 'iconify-icon';
+import { setSafeHTML, clearElement } from './src/utils/dom';
 import { AnimEngine } from './animation-engine';
 import { beamLog } from './logger';
 import { gsap } from 'gsap';
@@ -339,8 +347,8 @@ const initSafExtraction = () => {
         if (!targetTabId) return;
 
         // UI Loading State
-        const originalHtml = btnExtractSaf.innerHTML;
-        btnExtractSaf.innerHTML = '<div style="display:flex; align-items:center; gap:0.5rem;"><iconify-icon icon="lucide:loader-2" class="animate-spin"></iconify-icon> Extracting...</div>';
+        const originalHTML = btnExtractSaf.innerHTML;
+        setSafeHTML(btnExtractSaf, '<div style="display:flex; align-items:center; gap:0.5rem;"><iconify-icon icon="lucide:loader-2" class="animate-spin"></iconify-icon> Extracting...</div>');
         btnExtractSaf.disabled = true;
         btnExtractSaf.classList.add('disabled-btn');
 
@@ -379,7 +387,7 @@ const initSafExtraction = () => {
             // Restore UI State
             btnExtractSaf.disabled = false;
             btnExtractSaf.classList.remove('disabled-btn');
-            btnExtractSaf.innerHTML = originalHtml;
+            setSafeHTML(btnExtractSaf, originalHTML);
         }
     });
 };
@@ -437,8 +445,8 @@ const initPrereqMapping = () => {
         if (!targetTabId) return;
 
         // UI Loading State
-        const originalHtml = btn.innerHTML;
-        btn.innerHTML = `<div style="display:flex; align-items:center; gap:0.5rem;"><iconify-icon icon="lucide:loader-2" class="animate-spin"></iconify-icon> Extracting...</div>`;
+        const originalHTML = btn.innerHTML;
+        setSafeHTML(btn, `<div style="display:flex; align-items:center; gap:0.5rem;"><iconify-icon icon="lucide:loader-2" class="animate-spin"></iconify-icon> Extracting...</div>`);
         btn.disabled = true;
         btn.classList.add('disabled-btn');
 
@@ -475,7 +483,7 @@ const initPrereqMapping = () => {
             // Restore UI State
             btn.disabled = false;
             btn.classList.remove('disabled-btn');
-            btn.innerHTML = originalHtml;
+            setSafeHTML(btn, originalHTML);
         }
     };
 
@@ -513,7 +521,7 @@ const initActivityConsole = () => {
     // Hydrate from storage on initialization
     chrome.storage.local.get(['appLogs'], (result) => {
         if (result.appLogs && Array.isArray(result.appLogs)) {
-            consoleOutput.innerHTML = ''; // Clear the "Console initialized" placeholder
+            clearElement(consoleOutput); // Clear the "Console initialized" placeholder
             // Logs are stored most-recent-first, so we reverse for chronological display
             [...result.appLogs].reverse().forEach(log => {
                 appendLogToConsole(log.message, log.level, log.timestamp);
@@ -531,7 +539,7 @@ const initActivityConsole = () => {
     btnClearConsole?.addEventListener('click', () => {
         AnimEngine.animatePressFeedback(btnClearConsole);
         chrome.storage.local.set({ appLogs: [] }, () => {
-            consoleOutput.innerHTML = '';
+            clearElement(consoleOutput);
             appendLogToConsole('Console cleared.', 'info');
         });
     });
@@ -654,22 +662,22 @@ const initChangelog = async () => {
         const data = await response.json();
 
         if (Array.isArray(data)) {
-            changelogContainer.innerHTML = ''; // Clear loading state
+            clearElement(changelogContainer); // Clear loading state
             
-            data.forEach((entry: { version: string; date: string; changes: string[] }) => {
+            data.forEach((item: { version: string; date: string; changes: string[] }) => {
                 const versionEntry = document.createElement('div');
                 versionEntry.className = 'version-entry';
 
                 const header = document.createElement('div');
-                header.className = 'version-header';
-                header.innerHTML = `
-                    <span class="version-number">v${entry.version}</span>
-                    <span class="version-date">${entry.date}</span>
-                `;
+                header.className = 'changelog-version-header';
+                setSafeHTML(header, `
+                    <span class="version-tag">${item.version}</span>
+                    <span class="version-date">${item.date}</span>
+                `);
 
                 const changesList = document.createElement('ul');
                 changesList.className = 'version-changes';
-                entry.changes.forEach(change => {
+                item.changes.forEach(change => {
                     const li = document.createElement('li');
                     li.className = 'change-item';
                     li.textContent = change;
@@ -682,7 +690,7 @@ const initChangelog = async () => {
             });
         }
     } catch (error) {
-        changelogContainer.innerHTML = '<div class="muted-text" style="padding: 0.5rem;">Failed to load version history.</div>';
+        setSafeHTML(changelogContainer, '<div class="muted-text" style="padding: 0.5rem;">Failed to load version history.</div>');
     }
 };
 

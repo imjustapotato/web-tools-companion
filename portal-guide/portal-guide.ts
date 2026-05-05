@@ -1,9 +1,12 @@
-/**
- * Portal Guide Orchestrator
- * Bootstraps the Companion Hub, Logger, and Guide components inside a
- * Shadow DOM host, then wires them to chrome.runtime messages, local
- * storage events, and a custom window event relay.
+/*
+ * Copyright (C) 2026 Kenneth Westhle Davila (kendavila.me)
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License.
  */
+
+/** Portal Guide Orchestrator */
 import { CompanionHub, HubConfig } from './status-dom';
 import { LoggerHub } from './logger-dom';
 import { PortalGuide } from './guide-dom';

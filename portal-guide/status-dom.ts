@@ -3,6 +3,7 @@
  * Handles the "Dynamic Island" UI with GSAP Physics and Sentry Mode.
  */
 import { gsap } from 'gsap';
+import { setSafeHTML } from '../src/utils/dom';
 
 // V2.0 Physics configuration
 const PHYSICS = {
@@ -75,7 +76,7 @@ export class CompanionHub {
         
         this.iconWrapper = document.createElement('div');
         this.iconWrapper.className = 'icon-wrapper';
-        this.iconWrapper.innerHTML = this.ICONS.idle;
+        setSafeHTML(this.iconWrapper, this.ICONS.idle);
 
         this.textWrapper = document.createElement('div');
         this.textWrapper.className = 'text-wrapper';
@@ -168,7 +169,7 @@ export class CompanionHub {
         const particle = document.createElement('div');
         particle.className = 'payload-particle';
         particle.style.setProperty('--particle-color', config.color);
-        particle.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">${iconSvg || config.defaultIcon}</svg>`;
+        setSafeHTML(particle, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">${iconSvg || config.defaultIcon}</svg>`);
 
         this.particleLayer.appendChild(particle);
 
@@ -194,7 +195,7 @@ export class CompanionHub {
             gsap.set(particle, { x: startX, y: startY, xPercent: -50, yPercent: -50, scale: 0.1, opacity: 0 });
             this.pulsePill(config.color);
 
-            // Phase 1 — Squish: particle stretches out from the hub like a water droplet
+            // Phase 1  — Squish: particle stretches out from the hub like a water droplet
             tl.to(particle, {
                 x: (startX + centerX) / 2,
                 y: startY,
@@ -205,7 +206,7 @@ export class CompanionHub {
                 ease: 'power2.out'
             });
 
-            // Phase 2 — Snap: reforms into a circle at a randomized midpoint
+            // Phase 2  — Snap: reforms into a circle at a randomized midpoint
             tl.to(particle, {
                 x: centerX,
                 y: startY,
@@ -217,7 +218,7 @@ export class CompanionHub {
                 ease: PHYSICS.spring
             }, "-=0.1");
 
-            // Phase 3 — Beam: accelerates offscreen with rotation and fade
+            // Phase 3  — Beam: accelerates offscreen with rotation and fade
             tl.to(particle, {
                 x: centerX + (Math.random() - 0.5) * 400,
                 y: endY,
@@ -246,7 +247,7 @@ export class CompanionHub {
             rotation: (Math.random() - 0.5) * 180 
         });
 
-        // Phase 1 — Converge toward the hub
+        // Phase 1  — Converge toward the hub
         tl.to(particle, {
             x: centerX,
             y: startY,
@@ -257,7 +258,7 @@ export class CompanionHub {
             ease: 'power3.out'
         });
 
-        // Phase 2 — Stretch into the hub's gravitational pull
+        // Phase 2  — Stretch into the hub's gravitational pull
         tl.to(particle, {
             x: (startX + centerX) / 2,
             y: startY,
@@ -267,7 +268,7 @@ export class CompanionHub {
             ease: 'power2.in'
         });
 
-        // Phase 3 — Absorb: shrinks into the hub dot and triggers a pulse
+        // Phase 3  — Absorb: shrinks into the hub dot and triggers a pulse
         tl.to(particle, {
             x: startX,
             y: startY,
@@ -303,7 +304,7 @@ export class CompanionHub {
             gsap.set(heart, { x: startX, y: startY, xPercent: -50, yPercent: -50, scale: 0.1, opacity: 0 });
             this.pulsePill('#fb7185');
 
-            // Phase 1 — Squish outward
+            // Phase 1  — Squish outward
             tl.to(heart, {
                 x: (startX + centerX) / 2,
                 y: startY,
@@ -314,7 +315,7 @@ export class CompanionHub {
                 ease: 'power2.out'
             });
 
-            // Phase 2 — Snap into shape
+            // Phase 2  — Snap into shape
             tl.to(heart, {
                 x: centerX,
                 y: startY,
@@ -325,7 +326,7 @@ export class CompanionHub {
                 ease: PHYSICS.spring
             }, '-=0.05');
 
-            // Phase 3 — Beam upward and fade
+            // Phase 3  — Beam upward and fade
             tl.to(heart, {
                 x: centerX + (Math.random() - 0.5) * 600,
                 y: endY,
@@ -477,9 +478,9 @@ export class CompanionHub {
     }
 
     private swapIcon(newSvg: string) {
-        if (this.iconWrapper.innerHTML === newSvg) return;
+        if (this.iconWrapper.children[0]?.outerHTML === newSvg) return;
         
-        this.iconWrapper.innerHTML = newSvg;
+        setSafeHTML(this.iconWrapper, newSvg);
         gsap.fromTo(this.iconWrapper, 
             { scale: 0.5, rotation: -15 }, 
             { scale: 1, rotation: 0, duration: 0.5, ease: PHYSICS.spring }

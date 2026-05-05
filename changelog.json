@@ -1,5 +1,14 @@
 [
     {
+        "version": "1.0.2",
+        "date": "2026-05-03",
+        "changes": [
+            "Improved Security against XSS injections.",
+            "Improved Browser Compatibility for Firefox.",
+            "Squashed some bugs"
+        ]
+    },
+    {
         "version": "1.0.1",
         "date": "2026-04-30",
         "changes": [
