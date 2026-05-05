@@ -1,4 +1,4 @@
-﻿export const SUBJECT_CATALOG: Record<string, string> = {
+export const SUBJECT_CATALOG: Record<string, string> = {
     // === BSIT CST (CyberSecurity Technology) + Common IT Subs and General Subs Database ===
     'CCS0001': 'INTRODUCTION TO COMPUTING LEC',
     'CCS0001L': 'INTRODUCTION TO COMPUTING LAB',

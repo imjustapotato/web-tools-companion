@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (C) 2026 Kenneth Westhle Davila (kendavila.me)
  * 
  * This program is free software: you can redistribute it and/or modify
@@ -13,12 +13,24 @@ if (!(window as any).__CURRICULUM_SCRAPER_LOADED__) {
 
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         if (request.action === 'EXTRACT_CURRICULUM_DATA') {
-            const curriculumTable = document.getElementById('currTable');
-            const pageHeader = document.querySelector('.content-header h1');
+            console.log("[Curriculum Scraper] Extraction requested.");
+            
+            // Primary Selector
+            let curriculumTable = document.getElementById('currTable');
+            
+            // Fallback Selectors
+            if (!curriculumTable) {
+                console.log("[Curriculum Scraper] #currTable not found. Trying fallbacks...");
+                curriculumTable = document.querySelector('.table-curriculum') || 
+                                 document.querySelector('table[id*="curr"]') ||
+                                 document.querySelector('.content-body table');
+            }
+
+            const pageHeader = document.querySelector('.content-header h1') || document.querySelector('h1');
 
             // Validation: Ensure we are on the right page and the table exists
             if (!curriculumTable) {
-                console.warn("[Curriculum Scraper] Extraction failed: Not on curriculum page.");
+                console.warn("[Curriculum Scraper] Extraction failed: Table not found.");
                 
                 // Get existing state or initialize new one
                 chrome.storage.local.get(['activeGuide'], (result) => {
@@ -38,17 +50,17 @@ if (!(window as any).__CURRICULUM_SCRAPER_LOADED__) {
                 }));
                 
                 window.dispatchEvent(new CustomEvent('WEB_TOOLS_HUB_ACTION', {
-                    detail: { action: 'HIGHLIGHT_ELEMENT', selector: 'a[href="/program/curriculum"]', message: "Click 'Program Curriculum' on the left sidebar." }
+                    detail: { action: 'HIGHLIGHT_ELEMENT', selector: 'a[href*="/program/curriculum"]', message: "Click 'Program Curriculum' on the left sidebar." }
                 }));
 
                 sendResponse({ 
                     success: false, 
-                    error: "Not on Program Curriculum page. Please navigate there first." 
+                    error: "Could not locate curriculum data. Ensure you are on the Program Curriculum page." 
                 });
                 return true;
             }
 
-            console.log("[Curriculum Scraper] Table found. Extracting HTML...");
+            console.log("[Curriculum Scraper] Table located. Extracting content...");
 
             // We wrap it in a div to preserve the table structure for the heuristic parser
             const payload = `
@@ -68,13 +80,14 @@ if (!(window as any).__CURRICULUM_SCRAPER_LOADED__) {
                 }
             }));
 
-            // Trigger the fluid particle (Outbound Extract)
+            // Trigger particle
             window.dispatchEvent(new CustomEvent('WEB_TOOLS_HUB_ACTION', {
                 detail: { action: 'FIRE_PAYLOAD_BEAM', payloadType: 'extract' }
             }));
 
+            console.log("[Curriculum Scraper] Extraction successful.");
             sendResponse({ success: true, payload: payload });
-            return true; // Keep message channel open for the response to be sent
+            return true;
         }
     });
 }
