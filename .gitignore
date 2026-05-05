@@ -14,3 +14,5 @@ dist-obfuscate/
 release/
 release-obfuscate/
 scratch/
+dist-firefox/
+release-firefox/

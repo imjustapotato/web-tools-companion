@@ -1,3 +1,11 @@
+﻿/*
+ * Copyright (C) 2026 Kenneth Westhle Davila (kendavila.me)
+ * 
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License.
+ */
+
 // Injected into web-tools domains to pass the extension's data into the window context
 import { beamLog } from './logger';
 
@@ -31,6 +39,25 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 
     if (message.type === 'SYNC_DATA') {
+        const isSilent = message.dataType !== 'SAF_EXTRACT';
+
+        if (isSilent) {
+            // Skip the PROBE and the payload wait for silent syncs
+            if (message.payload) {
+                window.postMessage({
+                    type: 'WEB_TOOLS_EXTENSION_SYNC',
+                    dataType: message.dataType || 'SAF', 
+                    payload: message.payload,
+                    isSilent: true
+                }, '*');
+                beamLog(`Direct ${message.dataType || 'SAF'} silent sync delivered`, 'success');
+            } else {
+                syncAllDataToApp();
+            }
+            sendResponse({ success: true });
+            return false; // Synchronous response
+        }
+
         // Step 1: Execute PROBE to see if the web app is awake and has network-bridge.js
         window.postMessage({ type: 'WEB_TOOLS_PROBE' }, '*');
         
@@ -58,13 +85,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
         window.addEventListener('message', ackListener);
 
-        // Step 3: Wait. If no ACK after 500ms, the tab is likely throttled/asleep.
+        // Step 3: Wait. If no ACK after 2000ms, the tab is likely throttled/asleep.
         // Return false so popup.ts / background.ts knows to trigger a full tab reload.
         const probeTimeout = setTimeout(() => {
             window.removeEventListener('message', ackListener);
             console.log('[Bridge] PROBE timeout. Tab might be asleep.');
             sendResponse({ success: false, reason: 'timeout' });
-        }, 500);
+        }, 2000);
 
         return true; // Keep message channel open for async sendResponse
     }
@@ -95,7 +122,8 @@ function syncAllDataToApp() {
             window.postMessage({
                 type: 'WEB_TOOLS_EXTENSION_SYNC',
                 dataType: 'SAF',
-                payload: result.latestSchedule
+                payload: result.latestSchedule,
+                isSilent: true
             }, '*');
             beamLog("Persistent Schedule payload pushed", 'success');
         }
@@ -131,7 +159,8 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
         window.postMessage({
             type: 'WEB_TOOLS_EXTENSION_SYNC',
             dataType: 'SAF',
-            payload: changes.latestSchedule.newValue
+            payload: changes.latestSchedule.newValue,
+            isSilent: true
         }, '*');
         beamLog("Real-time Schedule update pushed", 'success');
     }

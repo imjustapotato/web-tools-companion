@@ -6,9 +6,11 @@ import archiver from 'archiver';
 const args = process.argv.slice(2);
 const isPackage = args.includes('--package');
 const isObfuscate = args.includes('--obfuscate');
+const isFirefox = args.includes('--firefox');
 
-const outDir = isObfuscate ? 'dist-obfuscate' : 'dist';
-const releaseDir = isObfuscate ? 'release-obfuscate' : 'release';
+const suffix = isFirefox ? '-firefox' : (isObfuscate ? '-obfuscate' : '');
+const outDir = `dist${suffix}`;
+const releaseDir = `release${suffix}`;
 
 const commonViteConfig = {
   configFile: false,
@@ -142,8 +144,24 @@ async function buildExtension() {
         });
     }
 
+    if (isFirefox) {
+      manifest.browser_specific_settings = {
+        gecko: {
+          id: "gen.harpuia@outlook.ph",
+          strict_min_version: "112.0"
+        }
+      };
+      
+      // Firefox MV3 background script fix
+      if (manifest.background && manifest.background.service_worker) {
+        manifest.background.scripts = [manifest.background.service_worker];
+        manifest.background.type = "module";
+        delete manifest.background.service_worker;
+      }
+    }
+
     fs.writeFileSync(nodePath.resolve(outDir, 'manifest.json'), JSON.stringify(manifest, null, 2));
-    console.log(`[Build] manifest.json sanitized (localhost removed) for production.`);
+    console.log(`[Build] manifest.json sanitized ${isFirefox ? '(Firefox optimized) ' : ''}(localhost removed) for production.`);
 
     // 2. Sanitize compiled JavaScript files
     const jsFiles = fs.readdirSync(outDir).filter(file => file.endsWith('.js'));
@@ -180,7 +198,9 @@ async function buildExtension() {
   console.log(`[Build] Static assets copied to ${outDir}/`);
 
   if (isPackage) {
-    const zipFileName = isObfuscate ? 'web-tools-companion-obfuscated.zip' : 'web-tools-companion-store.zip';
+    let zipFileName = isObfuscate ? 'web-tools-companion-obfuscated.zip' : 'web-tools-companion-store.zip';
+    if (isFirefox) zipFileName = 'web-tools-companion-firefox.zip';
+    
     const zipPath = nodePath.resolve(releaseDir, zipFileName);
     await createZip(outDir, zipPath);
   }

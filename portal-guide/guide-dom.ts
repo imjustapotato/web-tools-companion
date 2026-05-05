@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Guide DOM Component
  * Handles highlighting Portal elements and showing guidance tooltips.
  */
