@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Logger Hub (Shadow DOM Component)
  */
 import { gsap } from 'gsap';

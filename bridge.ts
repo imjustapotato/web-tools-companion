@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Copyright (C) 2026 Kenneth Westhle Davila (kendavila.me)
  * 
  * This program is free software: you can redistribute it and/or modify
@@ -143,7 +143,8 @@ function syncAllDataToApp() {
             window.postMessage({
                 type: 'WEB_TOOLS_EXTENSION_SYNC',
                 dataType: 'CURRICULUM',
-                payload: result.latestCurriculum
+                payload: result.latestCurriculum,
+                isSilent: true
             }, '*');
             beamLog("Curriculum payload pushed", 'success');
         }
@@ -180,7 +181,8 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
         window.postMessage({
             type: 'WEB_TOOLS_EXTENSION_SYNC',
             dataType: 'CURRICULUM',
-            payload: changes.latestCurriculum.newValue
+            payload: changes.latestCurriculum.newValue,
+            isSilent: true
         }, '*');
         beamLog("Real-time Curriculum update pushed", 'success');
     }
