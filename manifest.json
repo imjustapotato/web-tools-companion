@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "Web Tools Companion",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "description": "A companion extension for my Web Tools website.",
     "icons": {
         "128": "logo128.png"

@@ -1,5 +1,12 @@
 [
     {
+        "version": "1.0.3",
+        "date": "2026-05-09",
+        "changes": [
+            "Security Patch: Hardened Communication between Web tools and Companion."
+        ]
+    },
+    {
         "version": "1.0.2",
         "date": "2026-05-05",
         "changes": [

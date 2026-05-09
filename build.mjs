@@ -65,6 +65,73 @@ function createZip(sourceDir, outPath) {
 }
 
 /**
+ * Source Code Packaging Logic
+ * Specifically for Firefox (AMO) submission which requires original source 
+ * when using minification or bundling.
+ */
+function packageSource(releaseDir) {
+  const outPath = nodePath.resolve(releaseDir, 'source-code.zip');
+  
+  if (!fs.existsSync(nodePath.dirname(outPath))) {
+    fs.mkdirSync(nodePath.dirname(outPath), { recursive: true });
+  }
+
+  return new Promise((resolve, reject) => {
+    const output = fs.createWriteStream(outPath);
+    const archive = archiver('zip', { zlib: { level: 9 } });
+
+    output.on('close', () => {
+      console.log(`[Package] Source code archive created: ${outPath}`);
+      resolve();
+    });
+
+    archive.on('error', (err) => reject(err));
+    archive.pipe(output);
+
+    // List of files and directories to include in the source archive
+    const includeList = [
+      'src',
+      'portal-guide',
+      'manifest.json',
+      'package.json',
+      'package-lock.json',
+      'build.mjs',
+      'popup.css',
+      'popup.ts',
+      'background.ts',
+      'bridge.ts',
+      'autosched.ts',
+      'autosched-main.ts',
+      'saf-scraper.ts',
+      'curriculum-scraper.ts',
+      'animation-engine.ts',
+      'dom_validator.ts',
+      'logger.ts',
+      'subsmapping.ts',
+      'changelog.json',
+      'README.md',
+      'FIREFOX_SUBMISSION.md',
+      'vite.config.ts'
+    ];
+
+    for (const item of includeList) {
+      if (fs.existsSync(item)) {
+        const stats = fs.statSync(item);
+        if (stats.isDirectory()) {
+          // Add directory and its contents
+          archive.directory(item, item);
+        } else {
+          // Add individual file
+          archive.file(item, { name: item });
+        }
+      }
+    }
+
+    archive.finalize();
+  });
+}
+
+/**
  * Core Build Pipeline
  * 1. Bundles popup UI with Vite.
  * 2. Compiles TypeScript entry points (Background, Bridge, Injected scripts).
@@ -148,7 +215,10 @@ async function buildExtension() {
       manifest.browser_specific_settings = {
         gecko: {
           id: "gen.harpuia@outlook.ph",
-          strict_min_version: "112.0"
+          strict_min_version: "142.0",
+          data_collection_permissions: {
+            required: ["none"]
+          }
         }
       };
       
@@ -203,6 +273,10 @@ async function buildExtension() {
     
     const zipPath = nodePath.resolve(releaseDir, zipFileName);
     await createZip(outDir, zipPath);
+
+    if (isFirefox) {
+      await packageSource(releaseDir);
+    }
   }
 }
 
