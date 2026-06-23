@@ -402,6 +402,32 @@ details[open] .summary-chevron {
     color: var(--text-primary);
 }
 
+/* Stylized Hover Tooltip (Feature Buttons) */
+.feature-tooltip {
+    position: fixed;
+    top: -1000px;
+    left: -1000px;
+    z-index: 9999;
+    max-width: 240px;
+    background-color: var(--bg-surface-elevated);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-sm);
+    padding: 0.65rem 0.8rem;
+    font-size: 0.7rem;
+    line-height: 1.5;
+    color: var(--text-secondary);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity var(--transition-fast), transform var(--transition-fast);
+    pointer-events: none;
+}
+
+.feature-tooltip.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
 /* Show when the parent button is in listening mode OR when forced visible via JS */
 .tool-btn.is-listening + .mouse-tooltip,
 .mouse-tooltip.force-visible {

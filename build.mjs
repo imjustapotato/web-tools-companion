@@ -104,6 +104,7 @@ function packageSource(releaseDir) {
       'autosched-main.ts',
       'saf-scraper.ts',
       'curriculum-scraper.ts',
+      'network-map-scraper.ts',
       'animation-engine.ts',
       'dom_validator.ts',
       'logger.ts',
@@ -161,6 +162,7 @@ async function buildExtension() {
     { input: 'autosched-main.ts', output: 'autosched-main.js' },
     { input: 'saf-scraper.ts', output: 'saf-scraper.js' },
     { input: 'curriculum-scraper.ts', output: 'curriculum-scraper.js' },
+    { input: 'network-map-scraper.ts', output: 'network-map-scraper.js' },
     { input: 'bridge.ts', output: 'bridge.js' },
     { input: 'portal-guide/portal-guide.ts', output: 'portal-guide.js' },
     { input: 'background.ts', output: 'background.js' }

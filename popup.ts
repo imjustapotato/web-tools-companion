@@ -24,11 +24,13 @@ import { gsap } from 'gsap';
 /* CONFIGURATION */
 const APP_URLS = {
     VISUALIZER: 'https://tools.kendavila.me/',
-    REGISTRATION: 'https://solar.feutech.edu.ph/course/registration'
+    REGISTRATION: 'https://solar.feutech.edu.ph/course/registration',
+    PARAVERSE_NETWORK_MAP: 'https://paraverse.feutech.edu.ph/network-map/curriculum'
 };
 
 const DOMAINS = {
     PORTALS: ['localhost:8000', 'feutech.edu.ph', 'feualabang.edu.ph', 'feudiliman.edu.ph'],
+    PARAVERSE: ['paraverse.feutech.edu.ph', 'paraverse.feualabang.edu.ph', 'paraverse.feudiliman.edu.ph'],
     TOOLS: ['localhost:5173', 'tools.kendavila.me', 'web-tools-teal.vercel.app']
 };
 
@@ -272,7 +274,7 @@ const injectSafScraperScript = (tabId: number): Promise<boolean> => {
     });
 };
 
-/** 
+/**
  * Injects the Curriculum scraper script into the portal tab.
  */
 const injectCurriculumScraperScript = (tabId: number): Promise<boolean> => {
@@ -284,11 +286,23 @@ const injectCurriculumScraperScript = (tabId: number): Promise<boolean> => {
     });
 };
 
+/**
+ * Injects the Network Map scraper script into the portal tab.
+ */
+const injectNetworkMapScraperScript = (tabId: number): Promise<boolean> => {
+    return new Promise((resolve) => {
+        chrome.scripting.executeScript({
+            target: { tabId },
+            files: ['network-map-scraper.js']
+        }, () => resolve(!chrome.runtime.lastError));
+    });
+};
+
 /** 
  * Forces a synchronization event in the Web Tools tab.
  * Implements the Probe -> Handoff -> Reload sequence to battle Chrome Memory Saver natively.
  */
-const forceSyncWebToolsTabs = (payload?: any, type: 'SAF' | 'SAF_EXTRACT' | 'CURRICULUM' = 'SAF') => {
+const forceSyncWebToolsTabs = (payload?: any, type: 'SAF' | 'SAF_EXTRACT' | 'CURRICULUM' | 'SUBJECT_STATE' = 'SAF') => {
     chrome.tabs.query({}, (tabs) => {
         const matchingTabs = tabs.filter(tab => DOMAINS.TOOLS.some(url => tab.url?.includes(url)));
         const isSaf = type === 'SAF' || type === 'SAF_EXTRACT';
@@ -500,6 +514,76 @@ const initPrereqMapping = () => {
     btnExtractPrereqs?.addEventListener('click', () => handleExtraction(btnExtractPrereqs));
 };
 
+// Module: Subject State Sync
+const initSubjectStateSync = () => {
+    const btnSyncSubjectState = document.getElementById('btn-sync-subject-state') as HTMLButtonElement;
+
+    const handleSync = async (btn: HTMLButtonElement) => {
+        // 1. Find the target tab — Subject State data only lives on Paraverse's Network Map
+        const tabs = await chrome.tabs.query({});
+        const portalTab = tabs.find(tab => DOMAINS.PARAVERSE.some(d => tab.url?.includes(d)));
+
+        if (!portalTab) {
+            beamLog("Paraverse not found. Opening Network Map...", "warn");
+            chrome.tabs.create({ url: APP_URLS.PARAVERSE_NETWORK_MAP });
+            return;
+        }
+
+        // 2. Wake up the portal tab and bring it to the front
+        if (portalTab.id) {
+            chrome.tabs.update(portalTab.id, { active: true });
+            if (portalTab.windowId) chrome.windows.update(portalTab.windowId, { focused: true });
+        }
+
+        const targetTabId = portalTab.id;
+        if (!targetTabId) return;
+
+        // UI Loading State
+        const originalHTML = btn.innerHTML;
+        setSafeHTML(btn, `<div style="display:flex; align-items:center; gap:0.5rem;"><iconify-icon icon="lucide:loader-2" class="animate-spin"></iconify-icon> Syncing...</div>`);
+        btn.disabled = true;
+        btn.classList.add('disabled-btn');
+
+        try {
+            // Attempt 1: Message directly
+            let response = await sendMessageToTab(targetTabId, { action: 'EXTRACT_SUBJECT_STATE_DATA' });
+
+            // Attempt 2: Inject and retry if script is missing
+            if (!response) {
+                const isInjected = await injectNetworkMapScraperScript(targetTabId);
+                if (!isInjected) throw new Error("Could not access portal. Check extension permissions.");
+
+                response = await sendMessageToTab(targetTabId, { action: 'EXTRACT_SUBJECT_STATE_DATA' });
+            }
+
+            if (response?.success) {
+                // Store the extracted HTML and poke the visualizer
+                await chrome.storage.local.set({ latestSubjectState: response.payload });
+                forceSyncWebToolsTabs(response.payload, 'SUBJECT_STATE');
+
+                // Note: Hub notifications are now handled directly by the scraper script
+                // via local events for better responsiveness and to avoid double-triggering.
+            } else {
+                throw new Error(response?.error || "Failed to locate subject state data.");
+            }
+        } catch (error: any) {
+            showModal({
+                title: "Sync Failed",
+                message: error.message || "An unexpected error occurred during sync.",
+                type: "alert",
+                severity: "error"
+            });
+        } finally {
+            // Restore UI State
+            btn.disabled = false;
+            btn.classList.remove('disabled-btn');
+            setSafeHTML(btn, originalHTML);
+        }
+    };
+
+    btnSyncSubjectState?.addEventListener('click', () => handleSync(btnSyncSubjectState));
+};
+
 // Module: Activity Console
 const initActivityConsole = () => {
     const consoleOutput = document.getElementById('console-output') as HTMLDivElement;
@@ -656,6 +740,58 @@ const initHubSettings = () => {
     selectPreferredVertical.addEventListener('change', updateConfig);
 };
 
+/* STYLIZED FEATURE TOOLTIPS */
+/**
+ * Drives a single floating tooltip element, positioned near whichever
+ * [data-tooltip] element is currently hovered/focused, clamped to the popup's bounds.
+ */
+const initFeatureTooltips = () => {
+    const tooltipEl = document.getElementById('feature-tooltip') as HTMLElement;
+    if (!tooltipEl) return;
+
+    const targets = document.querySelectorAll<HTMLElement>('[data-tooltip]');
+    let hideTimeout: number | undefined;
+
+    const showTooltip = (target: HTMLElement) => {
+        const text = target.dataset.tooltip;
+        if (!text) return;
+
+        clearTimeout(hideTimeout);
+        tooltipEl.textContent = text;
+        tooltipEl.classList.add('is-visible');
+
+        const margin = 8;
+        const targetRect = target.getBoundingClientRect();
+        const tooltipRect = tooltipEl.getBoundingClientRect();
+
+        // Prefer placing below the button; flip above if it would overflow the popup
+        let top = targetRect.bottom + margin;
+        if (top + tooltipRect.height > window.innerHeight - margin) {
+            top = targetRect.top - tooltipRect.height - margin;
+        }
+
+        // Clamp horizontally so the tooltip never spills outside the popup's fixed width
+        const left = Math.min(
+            Math.max(targetRect.left, margin),
+            window.innerWidth - tooltipRect.width - margin
+        );
+
+        tooltipEl.style.top = `${top}px`;
+        tooltipEl.style.left = `${left}px`;
+    };
+
+    const hideTooltip = () => {
+        hideTimeout = window.setTimeout(() => tooltipEl.classList.remove('is-visible'), 80);
+    };
+
+    targets.forEach((target) => {
+        target.addEventListener('mouseenter', () => showTooltip(target));
+        target.addEventListener('mouseleave', hideTooltip);
+        target.addEventListener('focus', () => showTooltip(target));
+        target.addEventListener('blur', hideTooltip);
+    });
+};
+
 /* CHANGELOG MANAGEMENT */
 /**
  * Fetches the local changelog.json and renders it into the UI.
@@ -711,9 +847,11 @@ document.addEventListener('DOMContentLoaded', () => {
     initAutoScheduleToggle();
     initSafExtraction();
     initPrereqMapping();
+    initSubjectStateSync();
     initAccordions();
     initHubSettings();
     initActivityConsole();
     initChangelog();
     initGlobalPhysics();
+    initFeatureTooltips();
 });
