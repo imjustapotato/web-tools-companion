@@ -1,5 +1,15 @@
 [
     {
+        "version": "1.1.0",
+        "date": "2026-06-23",
+        "changes": [
+            "Feature: Sync Subject State under Pre-Requisite Mapping",
+            "Added tooltip descriptions for better user guidance.",
+            "Fixed some bugs and improved stability.",
+            "Some Code Cleanup"
+        ]
+    },
+    {
         "version": "1.0.3",
         "date": "2026-05-09",
         "changes": [

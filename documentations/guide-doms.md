@@ -1,6 +1,9 @@
 # Companion Hub & Guidance System
 
-The Companion Hub is a premium UI overlay injected into the SOLAR Portal. It provides real-time status updates, visual feedback for data extraction (beams), and an interactive guidance system that helps users navigate the portal.
+The Companion Hub is a premium UI overlay injected into the SOLAR Portal and the Paraverse Network Map (`paraverse.<campus>.edu.ph`). It provides real-time status updates, visual feedback for data extraction (beams), and an interactive guidance system that helps users navigate the portal.
+
+> [!NOTE]
+> OSES is deliberately **not** in the hub's match list — OSES pages render as an iframe inside SOLAR, and matching `oses.*` would inject a second hub instance into that iframe (a visible duplicate/"mirror" of the pill). Paraverse, by contrast, is a fully separate top-level domain, not an iframe of anything, so it's safe to match directly.
 
 ## Technical Architecture
 

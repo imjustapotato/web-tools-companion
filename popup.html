@@ -71,7 +71,7 @@
             <div class="tool-group-content">
                 <div class="tool-group-inner">
                     
-                    <button id="btn-auto-sched" class="tool-btn active-btn">
+                    <button id="btn-auto-sched" class="tool-btn active-btn" data-tooltip="Auto-Sync (FEU OSES): Automatically syncs your subjects as you Add or Drop them during enrollment in FEU OSES. Toggle this on, then keep enrolling; the Schedule Plotter updates live as your schedule changes.">
                         <div class="tool-btn-left">
                             <iconify-icon icon="lucide:zap" class="tool-btn-icon zap-icon"></iconify-icon>
                             <span class="tool-btn-text">Auto-Sync (FEU OSES)</span>
@@ -91,7 +91,7 @@
                         </div>
                     </div>
 
-                    <button id="btn-extract-saf" class="tool-btn">
+                    <button id="btn-extract-saf" class="tool-btn" data-tooltip="Extract from SAF: Pulls your finalized schedule from the Schedule and Assessment Form in SOLAR. Open your SAF page in SOLAR, then click this to load it into the Schedule Plotter.">
                         <div class="tool-btn-left">
                             <iconify-icon icon="lucide:file-text" class="tool-btn-icon"></iconify-icon>
                             <span>Extract from SAF</span>
@@ -104,26 +104,34 @@
         </details>
 
         <!-- Tool 2: Pre-Requisite Mapping -->
-        <div class="tool-group">
-            <div class="tool-group-summary static-summary">
-                <div class="tool-group-title">
-                    <iconify-icon icon="lucide:network" class="tool-group-icon"></iconify-icon>
+        <details class="tool-group" open>
+            <summary class="tool-group-summary">
+                <div class="summary-title-container">
+                    <iconify-icon icon="lucide:network" class="summary-icon"></iconify-icon>
                     <span>Pre-Requisite Mapping</span>
                 </div>
-            </div>
+                <iconify-icon icon="lucide:chevron-down" class="summary-chevron"></iconify-icon>
+            </summary>
 
             <div class="tool-group-content">
                 <div class="tool-group-inner">
-                    <button id="btn-extract-prereqs" class="tool-btn">
+                    <button id="btn-extract-prereqs" class="tool-btn" data-tooltip="Extract Pre-Requisites: Extracts your Curriculum from SOLAR and loads it into the Pre-Requisite Mapper, showing each subject's pre-requisites and dependents. Open your Curriculum page in SOLAR, then click this to extract it.">
                         <div class="tool-btn-left">
                             <iconify-icon icon="lucide:git-merge" class="tool-btn-icon"></iconify-icon>
                             <span>Extract Pre-Requisites</span>
                         </div>
                         <iconify-icon icon="lucide:download" class="tool-btn-icon"></iconify-icon>
                     </button>
+                    <button id="btn-sync-subject-state" class="tool-btn" data-tooltip="Sync Subject State: Pulls your Passed, In Progress, Failed, etc. statuses from the Network Map in Paraverse and marks them on your Pre-Requisite Mapper. Open the Network Map in Paraverse, then click this to sync.">
+                        <div class="tool-btn-left">
+                            <iconify-icon icon="lucide:check-circle-2" class="tool-btn-icon"></iconify-icon>
+                            <span>Sync Subject State</span>
+                        </div>
+                        <iconify-icon icon="lucide:download" class="tool-btn-icon"></iconify-icon>
+                    </button>
                 </div>
             </div>
-        </div>
+        </details>
 
         <!-- Tool 3: Companion Hub Settings -->
         <details class="tool-group">
@@ -258,10 +266,8 @@
 
     </div>
 
-    <!-- Interactive Tooltip for Listen State -->
-    <div id="mouse-tooltip" class="mouse-tooltip">
-        Monitoring for schedule changes. Add or remove subjects to sync automatically to the Web Tools! :>
-    </div>
+    <!-- Stylized Hover Tooltip for Feature Buttons -->
+    <div id="feature-tooltip" class="feature-tooltip" aria-hidden="true"></div>
 
     <!-- Dynamic Custom Modal -->
     <div id="confirm-modal" class="modal-overlay" style="display: none;">

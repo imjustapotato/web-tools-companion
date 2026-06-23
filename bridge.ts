@@ -55,24 +55,36 @@ const ALLOWED_APP_MESSAGE_TYPES = new Set<string>([
 ]);
 
 // Whitelist of allowed sync data types
-const ALLOWED_DATA_TYPES = new Set(['SAF', 'SAF_EXTRACT', 'CURRICULUM']);
+const ALLOWED_DATA_TYPES = new Set(['SAF', 'SAF_EXTRACT', 'CURRICULUM', 'SUBJECT_STATE']);
 
 const DEBUG_MODE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
+// Every type this bridge itself posts via window.postMessage(). Same-window postMessage
+// always loops back to every 'message' listener on that window — including this file's own
+// listener below — so each of these echoes back into isValidMessage() on every send. That's
+// expected self-traffic, not a malformed/unauthorized message, and must never warn.
+const OWN_OUTGOING_TYPES = new Set<string>([
+    MessageType.PROBE,
+    MessageType.EXTENSION_SYNC,
+    MessageType.HEARTBEAT_RESPONSE
+]);
+
+const WEB_TOOLS_TYPE_PREFIX = 'WEB_TOOLS_';
+
 // Helper to validate incoming message shape
 function isValidMessage(data: any): boolean {
-    const isValid = !!(
-        data && 
-        typeof data === 'object' && 
-        typeof data.type === 'string' && 
-        ALLOWED_APP_MESSAGE_TYPES.has(data.type)
-    );
+    const hasOwnTypeString = !!(data && typeof data === 'object' && typeof data.type === 'string');
+    const isAllowedAppType = hasOwnTypeString && ALLOWED_APP_MESSAGE_TYPES.has(data.type);
 
-    if (!isValid && DEBUG_MODE) {
+    // Only warn about messages that look like ours (the WEB_TOOLS_ prefix) but aren't
+    // recognized at all. Anything else is unrelated page traffic (other scripts/libraries
+    // posting messages on the same window) and isn't this bridge's concern.
+    if (!isAllowedAppType && hasOwnTypeString && DEBUG_MODE
+        && data.type.startsWith(WEB_TOOLS_TYPE_PREFIX) && !OWN_OUTGOING_TYPES.has(data.type)) {
         console.warn("[Bridge] Received malformed or unauthorized message:", data);
     }
 
-    return isValid;
+    return isAllowedAppType;
 }
 
 /**
@@ -114,6 +126,9 @@ function handleSyncAck(data: any) {
     if (dataType === 'CURRICULUM') {
         chrome.storage.local.remove(['latestCurriculum']);
         beamLog("Curriculum ephemeral storage cleared", 'info');
+    } else if (dataType === 'SUBJECT_STATE') {
+        chrome.storage.local.remove(['latestSubjectState']);
+        beamLog("Subject state ephemeral storage cleared", 'info');
     } else if (dataType === 'SAF_EXTRACT') {
         chrome.storage.local.remove(['extractedSchedule']);
         beamLog("Extracted SAF ephemeral storage cleared", 'info');
